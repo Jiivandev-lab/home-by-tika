@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestion des produits — HOME BY TIKA</title>
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .admin-banner {
+      background: rgba(200, 153, 104, 0.08);
+      border: 1px solid var(--gold);
+      padding: 1.2rem 1.5rem;
+      margin-bottom: 2.5rem;
+      border-radius: 2px;
+    }
+    .admin-banner h3 {
+      color: var(--gold);
+      font-family: var(--serif);
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+    }
+    .admin-banner p { font-size: 0.95rem; color: var(--ivory-dim); margin: 0; }
+    .admin-banner strong { color: var(--gold); }
+
+    .admin-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .admin-card {
+      background: var(--bg-card);
+      border: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      transition: border-color 0.3s ease;
+    }
+    .admin-card.has-photo { border-color: rgba(200, 153, 104, 0.45); }
+
+    .drop-zone {
+      aspect-ratio: 4 / 5;
+      position: relative;
+      background: linear-gradient(135deg, #252025 0%, #15131a 100%);
+      cursor: pointer;
+      overflow: hidden;
+      transition: all 0.25s ease;
+    }
+    .drop-zone:hover { background: linear-gradient(135deg, #2e2730 0%, #1a1820 100%); }
+    .drop-zone.dragover {
+      background: rgba(200, 153, 104, 0.15);
+      box-shadow: inset 0 0 0 2px var(--gold);
+    }
+    .drop-zone img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .drop-empty {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.8rem;
+      padding: 1rem;
+      text-align: center;
+      color: var(--ivory-dim);
+    }
+    .drop-empty .plus {
+      width: 50px;
+      height: 50px;
+      border: 1.5px solid var(--gold);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--gold);
+      font-size: 1.5rem;
+      font-family: var(--serif);
+    }
+    .drop-empty small {
+      font-size: 0.75rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .drop-zone input[type="file"] { display: none; }
+
+    .admin-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(20, 16, 12, 0.85) 0%, transparent 60%);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 1rem;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+    .drop-zone.has-photo:hover .admin-overlay { opacity: 1; }
+
+    .admin-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--gold);
+      color: var(--gold);
+      padding: 0.5rem 0.9rem;
+      font-size: 0.72rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      font-family: var(--sans);
+      transition: all 0.2s ease;
+    }
+    .admin-btn:hover { background: var(--gold); color: var(--bg); }
+    .admin-btn.danger { border-color: #c45b5b; color: #c45b5b; }
+    .admin-btn.danger:hover { background: #c45b5b; color: #fff; }
+
+    .admin-info {
+      padding: 1.2rem;
+      flex: 1;
+    }
+    .admin-info .cat {
+      font-size: 0.7rem;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .admin-info h4 {
+      font-family: var(--serif);
+      font-size: 1.1rem;
+      color: var(--ivory);
+      margin: 0.3rem 0 0.5rem;
+    }
+    .admin-info .meta {
+      font-size: 0.82rem;
+      color: var(--ivory-dim);
+      display: flex;
+      gap: 0.8rem;
+      flex-wrap: wrap;
+    }
+    .admin-info .meta span { color: var(--gold); }
+
+    .price-edit {
+      margin-top: 0.9rem;
+      padding-top: 0.9rem;
+      border-top: 1px solid var(--line);
+    }
+    .price-edit label {
+      display: block;
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+    .price-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .price-row input {
+      flex: 1;
+      min-width: 0;
+      background: var(--bg-soft);
+      border: 1px solid var(--line);
+      color: var(--ivory);
+      padding: 0.55rem 0.7rem;
+      font-family: var(--sans);
+      font-size: 1rem;
+      letter-spacing: 0.5px;
+      text-align: right;
+      transition: all 0.2s ease;
+    }
+    .price-row input:focus {
+      outline: none;
+      border-color: var(--gold);
+      background: var(--bg-card);
+    }
+    .price-row input.modified {
+      border-color: var(--gold);
+      color: var(--gold);
+      background: rgba(200, 153, 104, 0.06);
+    }
+    .price-row .currency {
+      color: var(--muted);
+      font-size: 0.78rem;
+      letter-spacing: 1.5px;
+      font-weight: 500;
+    }
+    .price-row .reset {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--muted);
+      font-size: 0.95rem;
+      cursor: pointer;
+      padding: 0.3rem 0.5rem;
+      transition: color 0.2s ease;
+      font-family: var(--sans);
+    }
+    .price-row .reset:hover { color: var(--gold); }
+    .price-row .reset.hidden { visibility: hidden; }
+    .price-hint {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 0.4rem;
+      letter-spacing: 0.5px;
+    }
+    .price-hint.modified { color: var(--gold); }
+
+    /* Champs texte éditables */
+    .field-edit {
+      margin-top: 0.9rem;
+      padding-top: 0.9rem;
+      border-top: 1px solid var(--line);
+    }
+    .field-edit label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.45rem;
+    }
+    .field-edit label .reset-field {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 0.95rem;
+      cursor: pointer;
+      padding: 0 0.3rem;
+      transition: color 0.2s ease;
+      visibility: hidden;
+    }
+    .field-edit label .reset-field.show { visibility: visible; }
+    .field-edit label .reset-field:hover { color: var(--gold); }
+    .field-edit input,
+    .field-edit textarea {
+      width: 100%;
+      background: var(--bg-soft);
+      border: 1px solid var(--line);
+      color: var(--ivory);
+      padding: 0.55rem 0.7rem;
+      font-family: var(--sans);
+      font-size: 0.92rem;
+      transition: all 0.2s ease;
+    }
+    .field-edit input:focus,
+    .field-edit textarea:focus {
+      outline: none;
+      border-color: var(--gold);
+      background: var(--bg-card);
+    }
+    .field-edit input.modified,
+    .field-edit textarea.modified {
+      border-color: var(--gold);
+      background: rgba(200, 153, 104, 0.05);
+    }
+    .field-edit textarea {
+      min-height: 85px;
+      resize: vertical;
+      line-height: 1.45;
+    }
+
+    /* Zone vidéo */
+    .video-edit {
+      margin-top: 0.9rem;
+      padding-top: 0.9rem;
+      border-top: 1px solid var(--line);
+    }
+    .video-edit label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.55rem;
+    }
+    .video-drop {
+      position: relative;
+      aspect-ratio: 16/9;
+      background: linear-gradient(135deg, #1d181a 0%, #131017 100%);
+      border: 1px dashed var(--line);
+      cursor: pointer;
+      overflow: hidden;
+      transition: all 0.25s ease;
+    }
+    .video-drop:hover { border-color: var(--gold); background: linear-gradient(135deg, #251f23 0%, #181420 100%); }
+    .video-drop.dragover {
+      border-style: solid;
+      border-color: var(--gold);
+      background: rgba(200, 153, 104, 0.12);
+    }
+    .video-drop.has-video { border-style: solid; border-color: rgba(200, 153, 104, 0.55); }
+    .video-drop video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .video-drop input[type="file"] { display: none; }
+    .video-empty {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 0.4rem;
+      color: var(--ivory-dim);
+      text-align: center;
+      padding: 0.6rem;
+    }
+    .video-empty .ico {
+      width: 38px; height: 38px;
+      border: 1.2px solid var(--gold);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--gold);
+      font-size: 0.95rem;
+    }
+    .video-empty small {
+      font-size: 0.7rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .video-actions {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(20,16,12,0.85), transparent 65%);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.8rem;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+    .video-drop.has-video:hover .video-actions { opacity: 1; }
+    .video-info {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+      letter-spacing: 0.3px;
+    }
+    .video-info.has { color: var(--gold); }
+
+    .admin-card { padding-bottom: 0.3rem; }
+    .admin-info { padding-bottom: 1.6rem; }
+
+    /* Section Images du site */
+    .site-images-section {
+      margin-bottom: 3.5rem;
+      padding-bottom: 3rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .site-images-section .section-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 0.4rem;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+    }
+    .site-images-section h2 {
+      font-size: 1.4rem;
+      font-family: var(--serif);
+    }
+    .site-images-section .section-lede {
+      color: var(--ivory-dim);
+      font-size: 0.95rem;
+      margin-bottom: 2rem;
+    }
+    .site-images-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+    .site-image-card {
+      background: var(--bg-card);
+      border: 1px solid var(--line);
+      padding: 1.6rem;
+      display: flex;
+      flex-direction: column;
+    }
+    .site-image-card h3 {
+      font-family: var(--serif);
+      font-size: 1.2rem;
+      margin-bottom: 0.3rem;
+    }
+    .site-image-card .hint {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      line-height: 1.45;
+    }
+    .site-image-drop {
+      position: relative;
+      background: linear-gradient(135deg, #1d181a 0%, #131017 100%);
+      border: 1px dashed var(--line);
+      cursor: pointer;
+      overflow: hidden;
+      transition: all 0.25s ease;
+      margin-bottom: 0.6rem;
+    }
+    .site-image-drop:hover { border-color: var(--gold); }
+    .site-image-drop.dragover { border-style: solid; border-color: var(--gold); background: rgba(200, 153, 104, 0.1); }
+    .site-image-drop.has-image { border-style: solid; border-color: rgba(200, 153, 104, 0.55); }
+    .site-image-drop.atelier { aspect-ratio: 1; }
+    .site-image-drop.hero { aspect-ratio: 16/9; }
+    .site-image-drop img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .site-image-drop input[type="file"] { display: none; }
+    .site-image-empty {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 0.6rem;
+      color: var(--ivory-dim);
+      text-align: center;
+      padding: 1rem;
+    }
+    .site-image-empty .ico {
+      width: 50px; height: 50px;
+      border: 1.5px solid var(--gold);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--gold);
+      font-size: 1.5rem;
+      font-family: var(--serif);
+    }
+    .site-image-empty small {
+      font-size: 0.75rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .site-image-actions {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 0.4rem;
+    }
+    .site-image-actions .preview-link {
+      margin-left: auto;
+      font-size: 0.78rem;
+      letter-spacing: 1.5px;
+      color: var(--gold);
+      text-decoration: none;
+      border-bottom: 1px dotted var(--gold);
+      padding-bottom: 1px;
+    }
+    .site-image-actions .preview-link:hover { border-bottom-style: solid; }
+
+    @media (max-width: 720px) {
+      .site-images-grid { grid-template-columns: 1fr; }
+    }
+
+    .admin-stats {
+      display: flex;
+      gap: 2rem;
+      flex-wrap: wrap;
+      padding: 1.5rem 0;
+      margin-top: 3rem;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      align-items: center;
+    }
+    .admin-stats .stat {
+      display: flex;
+      flex-direction: column;
+    }
+    .admin-stats .stat strong {
+      font-family: var(--serif);
+      font-size: 1.4rem;
+      color: var(--gold);
+      letter-spacing: 1px;
+    }
+    .admin-stats .stat small {
+      font-size: 0.75rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .admin-stats .actions { margin-left: auto; display: flex; gap: 0.6rem; }
+
+    .progress {
+      position: fixed;
+      bottom: 6rem;
+      right: 1.5rem;
+      background: var(--bg-card);
+      border: 1px solid var(--gold);
+      color: var(--gold);
+      padding: 0.7rem 1.2rem;
+      font-size: 0.85rem;
+      letter-spacing: 1px;
+      z-index: 998;
+      display: none;
+    }
+    .progress.show { display: block; }
+  </style>
+</head>
+<body>
+
+<!-- PANNEAU DE CONNEXION -->
+<div id="admin-gate" class="admin-gate">
+  <div class="admin-gate-card">
+    <img src="logo-mark.svg" alt="" class="admin-gate-logo">
+    <h2>Espace de gestion</h2>
+    <p class="lede">Entrez votre mot de passe pour modifier les photos et les prix du site.</p>
+    <form id="admin-login-form">
+      <div class="form-group">
+        <label for="admin-pwd">Mot de passe</label>
+        <input type="password" id="admin-pwd" required autocomplete="current-password" autofocus>
+      </div>
+      <p style="font-size: 0.78rem; color: var(--muted); margin: 1rem 0 1.5rem; letter-spacing: 0.5px; line-height: 1.5;">
+        🔒 Pour votre sécurité, le mot de passe sera demandé à chaque ouverture de cet espace.
+      </p>
+      <button type="submit" class="btn btn-primary" style="width:100%;">Entrer</button>
+      <p id="admin-error" class="admin-error">Mot de passe incorrect — réessayez.</p>
+    </form>
+    <a href="index.html" class="back-link">← Retour au site</a>
+  </div>
+</div>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="index.html" class="brand"><img src="logo-mark.svg" alt="" class="brand-icon"><span class="brand-text">HOME BY <em>TIKA</em><small>ESPACE DE GESTION</small></span></a>
+    <ul class="nav-links">
+      <li><a href="index.html">Voir le site</a></li>
+      <li><a href="admin.html" class="active">Photos</a></li>
+    </ul>
+    <div class="nav-actions"></div>
+  </nav>
+</header>
+
+<main>
+
+  <section class="page-header">
+    <div class="container">
+      <span class="hero-eyebrow">Espace privé</span>
+      <h1>Gestion des produits</h1>
+      <p>Modifiez les photos et les prix de chaque produit. Les changements s'appliquent immédiatement sur l'accueil, la boutique et le panier.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+
+      <div class="admin-banner">
+        <h3>Comment ça marche</h3>
+        <p>
+          <strong>Photo :</strong> glissez votre image sur la zone supérieure — JPG, PNG ou WEBP, jusqu'à 1800 px de large (HD).<br>
+          <strong>Vidéo :</strong> glissez une vidéo courte (≤ 30 s, max 50 Mo) sur la zone « ▶ ». Lecture auto en boucle silencieuse sur le site.<br>
+          <strong>Nom, description, catégorie, bois, badge :</strong> cliquez directement dans le champ, modifiez, puis cliquez en dehors (ou Entrée). Les champs modifiés sont signalés en doré.<br>
+          <strong>Prix :</strong> tapez le nouveau montant en FCFA, validez avec Entrée ou clic à l'extérieur.<br>
+          Sur chaque champ modifié, le bouton <strong>↺</strong> restaure la valeur d'origine.<br>
+          <em>Tout est enregistré automatiquement dans votre navigateur.</em>
+        </p>
+      </div>
+
+      <!-- SECTION : IMAGES DU SITE -->
+      <div class="site-images-section">
+        <div class="section-title">
+          <h2>Images du site</h2>
+          <a href="index.html" target="_blank" class="preview-link" style="font-size:0.78rem; color: var(--gold); letter-spacing:1.5px; text-decoration:none; border-bottom:1px dotted var(--gold);">Voir le rendu →</a>
+        </div>
+        <p class="section-lede">Images générales du site, hors fiches produits. Idéales pour mettre en scène votre univers — atelier, savoir-faire, ambiance.</p>
+
+        <div class="site-images-grid" id="site-images-grid"></div>
+      </div>
+
+      <h2 style="font-family: var(--serif); font-size: 1.4rem; margin-bottom: 1.4rem;">Produits</h2>
+      <div id="admin-grid" class="admin-grid"></div>
+
+      <div class="admin-stats">
+        <div class="stat"><strong id="stat-photos">0</strong><small>Photos</small></div>
+        <div class="stat"><strong id="stat-videos">0</strong><small>Vidéos</small></div>
+        <div class="stat"><strong id="stat-prices">0</strong><small>Prix modifiés</small></div>
+        <div class="stat"><strong id="stat-texts">0</strong><small>Textes modifiés</small></div>
+        <div class="stat"><strong id="stat-products">0</strong><small>Produits</small></div>
+        <div class="stat"><strong id="stat-size">0 Ko</strong><small>Espace photos</small></div>
+        <div class="actions">
+          <button class="admin-btn" id="export-all">Télécharger photos</button>
+          <button class="admin-btn" id="reset-prices">Reset prix</button>
+          <button class="admin-btn" id="reset-texts">Reset textes</button>
+          <button class="admin-btn danger" id="clear-all">Tout supprimer</button>
+          <button class="logout-btn" id="logout-btn">Déconnexion</button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-bottom" style="border:none; padding-top:0;">
+      <span>© 2026 HOME BY TIKA — Espace de gestion</span>
+      <span><a href="index.html" style="color: var(--gold);">← Retour au site</a></span>
+    </div>
+  </div>
+</footer>
+
+<div class="progress" id="progress">Traitement en cours…</div>
+
+<script src="script.js"></script>
+<script>
+// ============================================================
+// AUTHENTIFICATION ADMIN
+// ----------------------------------------------------
+// Pour changer le mot de passe, modifiez la valeur ci-dessous.
+// (Ne le rendez pas trop simple — évitez "1234", "admin"…)
+// ============================================================
+const ADMIN_PASSWORD = '696933MARINA';
+const AUTH_KEY = 'hbt-admin-auth';
+
+// Sécurité maximale : on supprime toute ancienne session persistante
+// (héritage d'une version précédente). Le mot de passe sera demandé
+// à chaque nouvelle ouverture de la page admin.
+localStorage.removeItem(AUTH_KEY);
+
+function isAuthed() {
+  // Authentification valable uniquement pendant la session courante
+  // (jusqu'à la fermeture de l'onglet/navigateur).
+  return sessionStorage.getItem(AUTH_KEY) === 'ok';
+}
+
+(function gateInit(){
+  const gate = document.getElementById('admin-gate');
+  const form = document.getElementById('admin-login-form');
+  const err = document.getElementById('admin-error');
+
+  // À chaque ouverture de la page, on force le ré-authentification
+  // → le panneau de connexion s'affiche systématiquement.
+  sessionStorage.removeItem(AUTH_KEY);
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const pwd = document.getElementById('admin-pwd').value;
+    if (pwd === ADMIN_PASSWORD) {
+      sessionStorage.setItem(AUTH_KEY, 'ok');
+      err.classList.remove('show');
+      gate.classList.add('hidden');
+      document.getElementById('admin-pwd').value = '';
+    } else {
+      err.classList.add('show');
+      document.getElementById('admin-pwd').value = '';
+      document.getElementById('admin-pwd').focus();
+    }
+  });
+})();
+
+(function(){
+  const grid = document.getElementById('admin-grid');
+  const siteGrid = document.getElementById('site-images-grid');
+  const progress = document.getElementById('progress');
+
+  // Définition des emplacements d'images de site
+  const SITE_IMAGE_SLOTS = [
+    {
+      key: 'atelier',
+      title: 'Atelier',
+      hint: 'Affichée dans les sections "L\'atelier" de la page d\'accueil et de la page atelier. Photo carrée recommandée : artisans, machines, travail du bois, réalisations…',
+      shape: 'atelier',
+      previewLink: 'apropos.html'
+    },
+    {
+      key: 'hero-bg',
+      title: 'Fond principal (page d\'accueil)',
+      hint: 'Grande image en arrière-plan de la bannière d\'accueil. Format paysage 16:9 recommandé. Un voile sombre élégant est appliqué automatiquement pour préserver la lisibilité.',
+      shape: 'hero',
+      previewLink: 'index.html'
+    }
+  ];
+
+  function renderSiteImages() {
+    if (!siteGrid) return;
+    siteGrid.innerHTML = SITE_IMAGE_SLOTS.map(slot => {
+      const img = SiteImages.get(slot.key);
+      return `
+        <div class="site-image-card" data-site-key="${slot.key}">
+          <h3>${slot.title}</h3>
+          <p class="hint">${slot.hint}</p>
+          <label class="site-image-drop ${slot.shape}${img ? ' has-image' : ''}" data-site-key="${slot.key}">
+            ${img
+              ? `<img src="${img}" alt="">`
+              : `<div class="site-image-empty">
+                   <div class="ico">+</div>
+                   <small>Glissez ou cliquez pour choisir</small>
+                 </div>`
+            }
+            <input type="file" accept="image/*" data-site-key="${slot.key}">
+          </label>
+          <div class="site-image-actions">
+            <button type="button" class="admin-btn" data-action="site-replace" data-site-key="${slot.key}">${img ? 'Remplacer' : 'Choisir une image'}</button>
+            ${img ? `<button type="button" class="admin-btn danger" data-action="site-remove" data-site-key="${slot.key}">Retirer</button>` : ''}
+            <a href="${slot.previewLink}" target="_blank" class="preview-link">Aperçu sur le site →</a>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Compression côté client : max 1200px de large, qualité 0.88
+  function compressImage(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const MAX = 1800; // Haute résolution (jusqu'à 1800 px de large)
+          let w = img.width, h = img.height;
+          if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#14100c';
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.9));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function renderGrid() {
+    grid.innerHTML = CATALOG.map(p => {
+      const photo = Photos.get(p.id);
+      const videoUrl = (typeof getVideoUrl === 'function') ? getVideoUrl(p.id) : null;
+      const currentPrice = getPrice(p);
+      const isPriceModified = Prices.get(p.id) !== null;
+
+      // Champs texte (avec surcharges éventuelles)
+      const f = {
+        name: getField(p, 'name'),
+        desc: getField(p, 'desc'),
+        cat: getField(p, 'cat'),
+        wood: getField(p, 'wood'),
+        label: getField(p, 'label'),
+        monogram: getField(p, 'monogram')
+      };
+      const mod = {
+        name: Overrides.get(p.id, 'name') !== undefined,
+        desc: Overrides.get(p.id, 'desc') !== undefined,
+        cat: Overrides.get(p.id, 'cat') !== undefined,
+        wood: Overrides.get(p.id, 'wood') !== undefined,
+        label: Overrides.get(p.id, 'label') !== undefined,
+        monogram: Overrides.get(p.id, 'monogram') !== undefined
+      };
+
+      return `
+        <div class="admin-card${photo ? ' has-photo' : ''}" data-id="${p.id}">
+          <label class="drop-zone${photo ? ' has-photo' : ''}" data-id="${p.id}">
+            ${photo
+              ? `<img src="${photo}" alt="">
+                 <div class="admin-overlay">
+                   <button type="button" class="admin-btn" data-action="replace">Remplacer</button>
+                   <button type="button" class="admin-btn danger" data-action="remove">Retirer</button>
+                 </div>`
+              : `<div class="drop-empty">
+                  <div class="plus">+</div>
+                  <small>Photo — glissez ou cliquez</small>
+                </div>`
+            }
+            <input type="file" accept="image/*" data-id="${p.id}">
+          </label>
+
+          <div class="admin-info">
+            <div class="meta">
+              <span style="color: var(--muted);">ID : ${p.id}</span>
+            </div>
+
+            <div class="field-edit">
+              <label>Nom du produit <button type="button" class="reset-field${mod.name ? ' show' : ''}" data-action="reset-field" data-id="${p.id}" data-field="name" title="Restaurer">↺</button></label>
+              <input type="text" class="field-input${mod.name ? ' modified' : ''}" data-id="${p.id}" data-field="name" value="${esc(f.name)}">
+            </div>
+
+            <div class="field-edit">
+              <label>Catégorie <button type="button" class="reset-field${mod.cat ? ' show' : ''}" data-action="reset-field" data-id="${p.id}" data-field="cat" title="Restaurer">↺</button></label>
+              <input type="text" class="field-input${mod.cat ? ' modified' : ''}" data-id="${p.id}" data-field="cat" value="${esc(f.cat)}">
+            </div>
+
+            <div class="field-edit">
+              <label>Essence de bois <button type="button" class="reset-field${mod.wood ? ' show' : ''}" data-action="reset-field" data-id="${p.id}" data-field="wood" title="Restaurer">↺</button></label>
+              <input type="text" class="field-input${mod.wood ? ' modified' : ''}" data-id="${p.id}" data-field="wood" value="${esc(f.wood)}" placeholder="Iroko, Framiré, Teck…">
+            </div>
+
+            <div class="field-edit">
+              <label>Badge (optionnel) <button type="button" class="reset-field${mod.label ? ' show' : ''}" data-action="reset-field" data-id="${p.id}" data-field="label" title="Restaurer">↺</button></label>
+              <input type="text" class="field-input${mod.label ? ' modified' : ''}" data-id="${p.id}" data-field="label" value="${esc(f.label || '')}" placeholder="Nouveau, Sur-mesure, Sculptée…">
+            </div>
+
+            <div class="field-edit">
+              <label>Description <button type="button" class="reset-field${mod.desc ? ' show' : ''}" data-action="reset-field" data-id="${p.id}" data-field="desc" title="Restaurer">↺</button></label>
+              <textarea class="field-input${mod.desc ? ' modified' : ''}" data-id="${p.id}" data-field="desc" rows="3">${esc(f.desc)}</textarea>
+            </div>
+
+            <div class="price-edit">
+              <label>Prix de vente</label>
+              <div class="price-row">
+                <input type="number"
+                       class="price-input${isPriceModified ? ' modified' : ''}"
+                       data-id="${p.id}"
+                       value="${currentPrice}"
+                       min="0"
+                       step="1000"
+                       inputmode="numeric">
+                <span class="currency">FCFA</span>
+                <button type="button"
+                        class="reset${isPriceModified ? '' : ' hidden'}"
+                        data-action="reset-price"
+                        data-id="${p.id}"
+                        title="Restaurer le prix par défaut">↺</button>
+              </div>
+              <div class="price-hint${isPriceModified ? ' modified' : ''}">
+                ${isPriceModified
+                  ? `Prix modifié · défaut : ${fcfa(p.price)}`
+                  : `Prix par défaut`}
+              </div>
+            </div>
+
+            <div class="video-edit">
+              <label>Vidéo (courte, &le; 30 s) <button type="button" class="reset-field${videoUrl ? ' show' : ''}" data-action="reset-video" data-id="${p.id}" title="Retirer la vidéo">↺</button></label>
+              <label class="video-drop${videoUrl ? ' has-video' : ''}" data-id="${p.id}">
+                ${videoUrl
+                  ? `<video src="${videoUrl}" autoplay muted loop playsinline preload="metadata"></video>
+                     <div class="video-actions">
+                       <button type="button" class="admin-btn" data-action="replace-video">Remplacer</button>
+                       <button type="button" class="admin-btn danger" data-action="remove-video">Retirer</button>
+                     </div>`
+                  : `<div class="video-empty">
+                       <div class="ico">▶</div>
+                       <small>Vidéo — glissez ou cliquez</small>
+                     </div>`
+                }
+                <input type="file" accept="video/*" data-id="${p.id}" data-kind="video">
+              </label>
+              <div class="video-info${videoUrl ? ' has' : ''}">
+                ${videoUrl ? 'Vidéo enregistrée localement (IndexedDB)' : 'Aucune vidéo'}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      `;
+    }).join('');
+    updateStats();
+  }
+
+  // Échappe les caractères HTML pour insertion sécurisée dans value=""
+  function esc(s) {
+    if (s == null) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function updateStats() {
+    const photos = Photos.read();
+    document.getElementById('stat-photos').textContent = Object.keys(photos).length;
+    document.getElementById('stat-products').textContent = CATALOG.length;
+    document.getElementById('stat-size').textContent = Photos.totalSize() + ' Ko';
+    const statPrices = document.getElementById('stat-prices');
+    if (statPrices) statPrices.textContent = Prices.count();
+    const statTexts = document.getElementById('stat-texts');
+    if (statTexts) statTexts.textContent = Overrides.count();
+    const statVideos = document.getElementById('stat-videos');
+    if (statVideos) statVideos.textContent = Object.keys(VIDEO_URLS).length;
+  }
+
+  async function handleFile(id, file) {
+    if (!file || !file.type.startsWith('image/')) {
+      showToast('<span class="gold">!</span> &nbsp;Fichier non valide — choisissez une image');
+      return;
+    }
+    progress.classList.add('show');
+    progress.textContent = 'Traitement de la photo…';
+    try {
+      const dataUrl = await compressImage(file);
+      Photos.set(id, dataUrl);
+      const p = CATALOG.find(c => c.id === id);
+      showToast(`<span class="gold">✓</span> &nbsp;Photo enregistrée — ${p ? getField(p,'name') : ''}`);
+      renderGrid();
+    } catch (err) {
+      if ((err && err.name === 'QuotaExceededError') || /quota/i.test(String(err))) {
+        showToast('<span class="gold">!</span> &nbsp;Espace localStorage plein — réduisez la taille des photos');
+      } else {
+        showToast('<span class="gold">!</span> &nbsp;Erreur lors du traitement');
+      }
+    } finally {
+      progress.classList.remove('show');
+    }
+  }
+
+  // Gestion d'une image de site (atelier, hero-bg)
+  // Compression jusqu'à 2200 px (plus grande pour les fonds)
+  function compressImageBig(file, maxWidth) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const MAX = maxWidth || 2200;
+          let w = img.width, h = img.height;
+          if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#14100c';
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.88));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handleSiteImage(key, file) {
+    if (!file || !file.type.startsWith('image/')) {
+      showToast('<span class="gold">!</span> &nbsp;Fichier non valide — choisissez une image');
+      return;
+    }
+    progress.classList.add('show');
+    progress.textContent = 'Traitement de l\'image…';
+    try {
+      // Atelier (carré) : 1600 px / Hero (paysage) : 2200 px
+      const maxW = key === 'hero-bg' ? 2200 : 1600;
+      const dataUrl = await compressImageBig(file, maxW);
+      SiteImages.set(key, dataUrl);
+      const slot = SITE_IMAGE_SLOTS.find(s => s.key === key);
+      showToast(`<span class="gold">✓</span> &nbsp;${slot ? slot.title : key} mis à jour`);
+      renderSiteImages();
+      updateStats();
+    } catch (err) {
+      if ((err && err.name === 'QuotaExceededError') || /quota/i.test(String(err))) {
+        showToast('<span class="gold">!</span> &nbsp;Espace plein — réduisez d\'abord les photos produits ou la taille de l\'image');
+      } else {
+        showToast('<span class="gold">!</span> &nbsp;Erreur lors du traitement');
+      }
+    } finally {
+      progress.classList.remove('show');
+    }
+  }
+
+  // Gestion vidéo : stockage dans IndexedDB
+  async function handleVideo(id, file) {
+    if (!file || !file.type.startsWith('video/')) {
+      showToast('<span class="gold">!</span> &nbsp;Fichier non valide — choisissez une vidéo');
+      return;
+    }
+    const MAX_MB = 50;
+    if (file.size > MAX_MB * 1024 * 1024) {
+      showToast('<span class="gold">!</span> &nbsp;Vidéo trop lourde (max ' + MAX_MB + ' Mo) — compressez-la');
+      return;
+    }
+    progress.classList.add('show');
+    progress.textContent = 'Enregistrement de la vidéo…';
+    try {
+      await VideoDB.set(id, file, { type: file.type, name: file.name, size: file.size });
+      await loadVideoCache();
+      const p = CATALOG.find(c => c.id === id);
+      showToast(`<span class="gold">✓</span> &nbsp;Vidéo enregistrée — ${p ? getField(p,'name') : ''}`);
+      renderGrid();
+    } catch (err) {
+      showToast('<span class="gold">!</span> &nbsp;Erreur lors de l\'enregistrement de la vidéo');
+    } finally {
+      progress.classList.remove('show');
+    }
+  }
+
+  // Helper : trouve la zone (photo, vidéo ou image de site) cible
+  function findDropZone(target) {
+    return target.closest('.drop-zone, .video-drop, .site-image-drop');
+  }
+
+  // Drag & drop sur les zones (photo + vidéo)
+  grid.addEventListener('dragenter', (e) => {
+    const zone = findDropZone(e.target);
+    if (zone) { e.preventDefault(); zone.classList.add('dragover'); }
+  });
+  grid.addEventListener('dragover', (e) => {
+    const zone = findDropZone(e.target);
+    if (zone) { e.preventDefault(); zone.classList.add('dragover'); }
+  });
+  grid.addEventListener('dragleave', (e) => {
+    const zone = findDropZone(e.target);
+    if (zone && !zone.contains(e.relatedTarget)) zone.classList.remove('dragover');
+  });
+  grid.addEventListener('drop', (e) => {
+    const zone = findDropZone(e.target);
+    if (!zone) return;
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    const id = zone.dataset.id;
+    const file = e.dataTransfer.files[0];
+    if (zone.classList.contains('video-drop')) handleVideo(id, file);
+    else handleFile(id, file);
+  });
+
+  // Click sur input file (photo + vidéo)
+  grid.addEventListener('change', (e) => {
+    if (e.target.matches('input[type="file"]')) {
+      const id = e.target.dataset.id;
+      const file = e.target.files[0];
+      if (e.target.dataset.kind === 'video') handleVideo(id, file);
+      else handleFile(id, file);
+      e.target.value = '';
+      return;
+    }
+    // Sauvegarde des champs texte au blur ou changement
+    if (e.target.matches('.field-input')) {
+      const id = e.target.dataset.id;
+      const field = e.target.dataset.field;
+      const p = CATALOG.find(c => c.id === id);
+      if (!p) return;
+      const newValue = e.target.value;
+      const original = p[field] || '';
+      if (newValue === original) {
+        Overrides.set(id, field, null); // supprime la surcharge
+        showToast(`<span class="gold">↺</span> &nbsp;${field} : valeur par défaut restaurée`);
+      } else {
+        Overrides.set(id, field, newValue);
+        showToast(`<span class="gold">✓</span> &nbsp;${field} mis à jour`);
+      }
+      renderGrid();
+    }
+  });
+
+  // Boutons d'action sur les cartes
+  grid.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    e.preventDefault();
+    const id = btn.dataset.id;
+    const action = btn.dataset.action;
+
+    // Reset prix
+    if (action === 'reset-price') {
+      Prices.remove(id);
+      const p = CATALOG.find(c => c.id === id);
+      renderGrid();
+      showToast(`<span class="gold">↺</span> &nbsp;Prix par défaut restauré — ${fcfa(p.price)}`);
+      return;
+    }
+
+    // Reset d'un champ texte spécifique
+    if (action === 'reset-field') {
+      const field = btn.dataset.field;
+      Overrides.set(id, field, null);
+      renderGrid();
+      showToast(`<span class="gold">↺</span> &nbsp;${field} : valeur par défaut restaurée`);
+      return;
+    }
+
+    // Reset / retrait vidéo
+    if (action === 'reset-video' || action === 'remove-video') {
+      try {
+        await VideoDB.remove(id);
+        await loadVideoCache();
+        renderGrid();
+        showToast('<span class="gold">—</span> &nbsp;Vidéo retirée');
+      } catch (err) {
+        showToast('<span class="gold">!</span> &nbsp;Erreur lors du retrait');
+      }
+      return;
+    }
+
+    // Remplacer vidéo
+    if (action === 'replace-video') {
+      const vZone = btn.closest('.video-drop');
+      if (vZone) vZone.querySelector('input[type="file"]').click();
+      return;
+    }
+
+    // Photo : remplacer / retirer
+    const zone = btn.closest('.drop-zone');
+    if (!zone) return;
+    const photoId = zone.dataset.id;
+    if (action === 'remove') {
+      Photos.remove(photoId);
+      renderGrid();
+      showToast('<span class="gold">—</span> &nbsp;Photo retirée');
+    } else if (action === 'replace') {
+      zone.querySelector('input[type="file"]').click();
+    }
+  });
+
+  // Modification de prix (déclenché à la sortie du champ ou sur Entrée)
+  grid.addEventListener('change', (e) => {
+    if (!e.target.matches('.price-input')) return;
+    const id = e.target.dataset.id;
+    const p = CATALOG.find(c => c.id === id);
+    if (!p) return;
+    let v = parseFloat(e.target.value);
+    if (isNaN(v) || v < 0) {
+      e.target.value = getPrice(p);
+      showToast('<span class="gold">!</span> &nbsp;Prix invalide');
+      return;
+    }
+    v = Math.round(v);
+    if (v === p.price) {
+      Prices.remove(id);
+      showToast(`<span class="gold">↺</span> &nbsp;Prix par défaut restauré`);
+    } else {
+      Prices.set(id, v);
+      showToast(`<span class="gold">✓</span> &nbsp;Prix mis à jour — ${fcfa(v)}`);
+    }
+    renderGrid();
+  });
+
+  // Sélectionne tout le contenu au focus (UX d'édition)
+  grid.addEventListener('focusin', (e) => {
+    if (e.target.matches('.price-input')) e.target.select();
+  });
+
+  // ============================================================
+  // SECTION IMAGES DU SITE — drag/drop, change, actions
+  // ============================================================
+  if (siteGrid) {
+    siteGrid.addEventListener('dragenter', (e) => {
+      const zone = e.target.closest('.site-image-drop');
+      if (zone) { e.preventDefault(); zone.classList.add('dragover'); }
+    });
+    siteGrid.addEventListener('dragover', (e) => {
+      const zone = e.target.closest('.site-image-drop');
+      if (zone) { e.preventDefault(); zone.classList.add('dragover'); }
+    });
+    siteGrid.addEventListener('dragleave', (e) => {
+      const zone = e.target.closest('.site-image-drop');
+      if (zone && !zone.contains(e.relatedTarget)) zone.classList.remove('dragover');
+    });
+    siteGrid.addEventListener('drop', (e) => {
+      const zone = e.target.closest('.site-image-drop');
+      if (!zone) return;
+      e.preventDefault();
+      zone.classList.remove('dragover');
+      const key = zone.dataset.siteKey;
+      const file = e.dataTransfer.files[0];
+      handleSiteImage(key, file);
+    });
+    siteGrid.addEventListener('change', (e) => {
+      if (e.target.matches('input[type="file"]')) {
+        const key = e.target.dataset.siteKey;
+        const file = e.target.files[0];
+        handleSiteImage(key, file);
+        e.target.value = '';
+      }
+    });
+    siteGrid.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      const key = btn.dataset.siteKey;
+      if (action === 'site-remove') {
+        e.preventDefault();
+        SiteImages.remove(key);
+        renderSiteImages();
+        updateStats();
+        showToast('<span class="gold">—</span> &nbsp;Image retirée');
+      } else if (action === 'site-replace') {
+        e.preventDefault();
+        const zone = btn.closest('.site-image-card').querySelector('.site-image-drop input[type="file"]');
+        if (zone) zone.click();
+      }
+    });
+  }
+
+  // Boutons globaux
+  document.getElementById('clear-all').addEventListener('click', async () => {
+    if (confirm('Supprimer TOUTES les photos, vidéos, images du site, prix et textes modifiés ?\n\nCette action est irréversible.')) {
+      Photos.clear();
+      Prices.clear();
+      Overrides.clear();
+      SiteImages.clear();
+      try { await VideoDB.clear(); } catch (e) {}
+      await loadVideoCache();
+      renderSiteImages();
+      renderGrid();
+      showToast('<span class="gold">—</span> &nbsp;Toutes les modifications ont été supprimées');
+    }
+  });
+
+  document.getElementById('reset-texts').addEventListener('click', () => {
+    const n = Overrides.count();
+    if (n === 0) {
+      showToast('<span class="gold">!</span> &nbsp;Aucun texte modifié');
+      return;
+    }
+    if (confirm(`Remettre les ${n} texte(s) modifié(s) à leur valeur par défaut ?`)) {
+      Overrides.clear();
+      renderGrid();
+      showToast('<span class="gold">↺</span> &nbsp;Tous les textes sont revenus à la valeur par défaut');
+    }
+  });
+
+  document.getElementById('logout-btn').addEventListener('click', () => {
+    if (confirm('Se déconnecter de l\'espace de gestion ?')) {
+      localStorage.removeItem(AUTH_KEY);
+      sessionStorage.removeItem(AUTH_KEY);
+      location.reload();
+    }
+  });
+
+  document.getElementById('reset-prices').addEventListener('click', () => {
+    const n = Prices.count();
+    if (n === 0) {
+      showToast('<span class="gold">!</span> &nbsp;Aucun prix modifié');
+      return;
+    }
+    if (confirm(`Remettre les ${n} prix modifié(s) à leur valeur par défaut ?`)) {
+      Prices.clear();
+      renderGrid();
+      showToast('<span class="gold">↺</span> &nbsp;Tous les prix sont revenus à la valeur par défaut');
+    }
+  });
+
+  document.getElementById('export-all').addEventListener('click', () => {
+    const photos = Photos.read();
+    const ids = Object.keys(photos);
+    if (ids.length === 0) {
+      showToast('<span class="gold">!</span> &nbsp;Aucune photo à télécharger');
+      return;
+    }
+    ids.forEach((id, i) => {
+      setTimeout(() => {
+        const a = document.createElement('a');
+        a.href = photos[id];
+        a.download = id + '.jpg';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }, i * 200);
+    });
+    showToast(`<span class="gold">✓</span> &nbsp;${ids.length} photo(s) en téléchargement`);
+  });
+
+  // Init — précharge les vidéos puis rend les grilles
+  (async () => {
+    try { await loadVideoCache(); } catch (e) {}
+    renderSiteImages();
+    renderGrid();
+  })();
+})();
+</script>
+</body>
+</html>

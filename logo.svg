@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 360" role="img" aria-label="HOME BY TIKA">
+  <defs>
+    <linearGradient id="goldStroke" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#b88746"/>
+      <stop offset="55%" stop-color="#9c6e30"/>
+      <stop offset="100%" stop-color="#5e3f1c"/>
+    </linearGradient>
+    <linearGradient id="doorWood" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#c89968"/>
+      <stop offset="40%" stop-color="#a07338"/>
+      <stop offset="100%" stop-color="#5e3f1c"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Maison stylisée : murs verticaux qui se courbent jusqu'à un sommet arrondi -->
+  <path d="M 50 205 L 50 130 Q 50 50 140 28 Q 230 50 230 130 L 230 205"
+        fill="none"
+        stroke="url(#goldStroke)"
+        stroke-width="4"
+        stroke-linejoin="round"
+        stroke-linecap="round"/>
+
+  <!-- Porte massive (légèrement bombée) -->
+  <rect x="113" y="100" width="54" height="105" rx="1.5" fill="url(#doorWood)"/>
+  <rect x="119" y="106" width="42" height="93" rx="0.8" fill="none" stroke="#5e3f1c" stroke-width="0.6" opacity="0.7"/>
+  <line x1="140" y1="106" x2="140" y2="199" stroke="#5e3f1c" stroke-width="0.5" opacity="0.55"/>
+  <circle cx="156" cy="155" r="2.4" fill="#5e3f1c"/>
+
+  <!-- Sol -->
+  <line x1="34" y1="210" x2="172" y2="210" stroke="url(#goldStroke)" stroke-width="2.4" stroke-linecap="round"/>
+  <line x1="184" y1="216" x2="246" y2="216" stroke="url(#goldStroke)" stroke-width="1.6" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- HOME -->
+  <text x="140" y="278" text-anchor="middle"
+        font-family="'Playfair Display', Georgia, serif"
+        font-size="46" font-weight="400" letter-spacing="6"
+        fill="url(#goldStroke)">HOME</text>
+
+  <line x1="92" y1="295" x2="188" y2="295" stroke="url(#goldStroke)" stroke-width="0.8" opacity="0.65"/>
+
+  <!-- BY TIKA -->
+  <text x="140" y="328" text-anchor="middle"
+        font-family="'Inter', 'Helvetica Neue', Arial, sans-serif"
+        font-size="19" font-weight="400" letter-spacing="9"
+        fill="url(#goldStroke)">BY TIKA</text>
+</svg>

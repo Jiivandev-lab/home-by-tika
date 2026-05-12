@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Localisation — HOME BY TIKA</title>
+  <meta name="description" content="Partagez votre emplacement à HOME BY TIKA pour la livraison ou l'installation de votre commande.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="index.html" class="brand"><img src="logo-mark.svg" alt="" class="brand-icon"><span class="brand-text">HOME BY <em>TIKA</em><small>BOIS MASSIF · CÔTE D'IVOIRE</small></span></a>
+    <ul class="nav-links">
+      <li><a href="index.html">Accueil</a></li>
+      <li><a href="boutique.html">Boutique</a></li>
+      <li><a href="apropos.html">Atelier</a></li>
+      <li><a href="contact.html">Contact</a></li>
+      <li><a href="localisation.html" class="active">Localisation</a></li>
+    </ul>
+    <div class="nav-actions">
+      <a href="panier.html" class="cart-btn">
+        Panier <span class="cart-count" id="cart-count">0</span>
+      </a>
+    </div>
+  </nav>
+</header>
+
+<main>
+
+  <section class="page-header">
+    <div class="container">
+      <span class="hero-eyebrow">Livraison & installation</span>
+      <h1>Partagez votre emplacement</h1>
+      <p>Marquez votre emplacement sur la carte, et nous saurons exactement où venir pour livrer ou installer votre commande.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+
+      <div class="map-grid">
+
+        <div class="map-controls">
+
+          <h2>Votre emplacement</h2>
+
+          <div class="map-help">
+            <strong>3 façons de marquer votre position :</strong><br>
+            • Cliquez sur <em>Utiliser ma position GPS</em><br>
+            • Cliquez directement sur la carte<br>
+            • Faites glisser le marqueur vert pour ajuster
+          </div>
+
+          <button type="button" class="btn btn-primary" id="use-gps">Utiliser ma position GPS</button>
+
+          <div class="form-group" style="margin-top: 1.5rem;">
+            <label for="lat">Latitude</label>
+            <input type="text" id="lat" readonly placeholder="—">
+          </div>
+          <div class="form-group">
+            <label for="lng">Longitude</label>
+            <input type="text" id="lng" readonly placeholder="—">
+          </div>
+          <div class="form-group">
+            <label for="address">Adresse approximative</label>
+            <input type="text" id="address" readonly placeholder="—">
+          </div>
+
+          <hr>
+
+          <h3>Vos informations</h3>
+
+          <div class="form-group">
+            <label for="name">Nom &amp; prénom</label>
+            <input type="text" id="name" placeholder="Ex. Konan N'Guessan">
+          </div>
+          <div class="form-group">
+            <label for="phone">Téléphone</label>
+            <input type="tel" id="phone" placeholder="+225 …" inputmode="tel">
+          </div>
+          <div class="form-group">
+            <label for="note">Note (étage, code, repère…)</label>
+            <textarea id="note" rows="3" placeholder="Étage 2, après la pharmacie, portail bleu…"></textarea>
+          </div>
+
+          <button type="button" class="btn btn-primary" id="send-whatsapp">Envoyer ma position sur WhatsApp</button>
+          <p style="font-size: 0.78rem; color: var(--muted); text-align: center; margin-top: 0.6rem;">
+            Ouvre WhatsApp avec votre position et un lien Google Maps cliquable.
+          </p>
+
+        </div>
+
+        <div class="map-wrap">
+          <div id="map"></div>
+        </div>
+
+      </div>
+
+      <div style="margin-top: 4rem; padding: 2rem; border: 1px solid var(--line); background: var(--bg-soft); text-align: center;">
+        <span class="hero-eyebrow">Notre atelier</span>
+        <h2 style="margin-bottom: 0.8rem; font-size: 1.5rem;">HOME BY TIKA — Songon, Cité la Grâce</h2>
+        <p style="max-width: 560px; margin: 0 auto;">Vous pouvez aussi venir directement à l'atelier (sur rendez-vous). Cliquez sur le marqueur doré sur la carte pour ouvrir l'itinéraire vers nous dans Google Maps.</p>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col footer-brand">
+        <a href="index.html" class="brand"><img src="logo-mark.svg" alt="" class="brand-icon"><span class="brand-text">HOME BY <em>TIKA</em><small>BOIS MASSIF · CÔTE D'IVOIRE</small></span></a>
+        <p>Spécialiste du mobilier en bois massif et des portes haut de gamme en Côte d'Ivoire — Iroko, Framiré, Teck.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Boutique</h4>
+        <ul>
+          <li><a href="boutique.html">Salons &amp; tables</a></li>
+          <li><a href="boutique.html">Lits &amp; armoires</a></li>
+          <li><a href="boutique.html">Cuisines</a></li>
+          <li><a href="boutique.html">Meubles TV &amp; bureaux</a></li>
+          <li><a href="boutique.html">Portes</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Maison</h4>
+        <ul>
+          <li><a href="apropos.html">L'atelier</a></li>
+          <li><a href="contact.html">Contact</a></li>
+          <li><a href="localisation.html">Localisation</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Services</h4>
+        <ul>
+          <li><a href="contact.html">Conception &amp; sur-mesure</a></li>
+          <li><a href="contact.html">Vernissage &amp; finition</a></li>
+          <li><a href="contact.html">Installation</a></li>
+          <li><a href="contact.html">Rénovation de meubles</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 HOME BY TIKA — Tous droits réservés</span>
+      <span>Atelier · Songon, Cité la Grâce — Abidjan · WhatsApp +225 07 48 73 86 71</span>
+      <span><a href="admin.html" class="gestion-link" title="Espace de gestion" aria-label="Espace de gestion">•••</a></span>
+    </div>
+  </div>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="script.js"></script>
+<script>
+(function(){
+  // Coordonnées approximatives de Songon, Cité la Grâce
+  const WORKSHOP = [5.3066, -4.2517];
+  const WHATSAPP = '2250748738671';
+
+  // Carte centrée sur Abidjan
+  const map = L.map('map', { zoomControl: true, scrollWheelZoom: true })
+    .setView([5.345, -4.20], 11);
+
+  // Tuiles claires CartoDB Voyager (thème clair, chaleureux)
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 19
+  }).addTo(map);
+
+  // Marqueur de l'atelier (doré, fixe)
+  const workshopIcon = L.divIcon({
+    className: 'tika-marker',
+    html: '<div class="pin"><span>T</span></div>',
+    iconSize: [34, 34],
+    iconAnchor: [17, 34],
+    popupAnchor: [0, -34]
+  });
+  const workshopMarker = L.marker(WORKSHOP, { icon: workshopIcon }).addTo(map);
+  workshopMarker.bindPopup(
+    '<strong style="font-family: Playfair Display, serif; font-size: 1.05rem; color: var(--gold);">HOME BY TIKA</strong><br>' +
+    'Songon, Cité la Grâce<br>Abidjan, Côte d\'Ivoire<br><br>' +
+    '<a href="https://www.google.com/maps/dir/?api=1&destination=' + WORKSHOP[0] + ',' + WORKSHOP[1] +
+    '" target="_blank" style="color: var(--gold);">Itinéraire vers l\'atelier →</a>'
+  );
+
+  // Marqueur du client
+  let customerMarker = null;
+  const customerIcon = L.divIcon({
+    className: 'customer-marker',
+    html: '<div class="pin"><span>✓</span></div>',
+    iconSize: [34, 34],
+    iconAnchor: [17, 34]
+  });
+
+  function setCustomerLocation(lat, lng, zoom) {
+    if (customerMarker) {
+      customerMarker.setLatLng([lat, lng]);
+    } else {
+      customerMarker = L.marker([lat, lng], {
+        icon: customerIcon,
+        draggable: true
+      }).addTo(map);
+      customerMarker.on('dragend', (e) => {
+        const ll = e.target.getLatLng();
+        document.getElementById('lat').value = ll.lat.toFixed(6);
+        document.getElementById('lng').value = ll.lng.toFixed(6);
+        reverseGeocode(ll.lat, ll.lng);
+      });
+      customerMarker.bindPopup('Votre emplacement<br><small>Vous pouvez me faire glisser pour ajuster.</small>');
+    }
+    document.getElementById('lat').value = lat.toFixed(6);
+    document.getElementById('lng').value = lng.toFixed(6);
+    if (zoom) map.setView([lat, lng], zoom);
+    reverseGeocode(lat, lng);
+  }
+
+  // Recherche d'adresse à partir des coordonnées (Nominatim)
+  let geocodeTimer = null;
+  function reverseGeocode(lat, lng) {
+    const out = document.getElementById('address');
+    out.value = 'Recherche en cours…';
+    clearTimeout(geocodeTimer);
+    geocodeTimer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          'https://nominatim.openstreetmap.org/reverse?lat=' + lat + '&lon=' + lng +
+          '&format=json&accept-language=fr&zoom=18',
+          { headers: { 'Accept': 'application/json' } }
+        );
+        if (!res.ok) throw new Error('http');
+        const data = await res.json();
+        out.value = data.display_name || 'Adresse non identifiée';
+      } catch (err) {
+        out.value = 'Adresse non identifiée (utilisez les coordonnées GPS)';
+      }
+    }, 600);
+  }
+
+  // Clic sur la carte pour placer le marqueur client
+  map.on('click', (e) => {
+    setCustomerLocation(e.latlng.lat, e.latlng.lng);
+  });
+
+  // Bouton GPS
+  document.getElementById('use-gps').addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      showToast('<span class="gold">!</span> &nbsp;Géolocalisation non disponible sur ce navigateur');
+      return;
+    }
+    showToast('<span class="gold">⟳</span> &nbsp;Recherche de votre position…');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setCustomerLocation(latitude, longitude, 16);
+        showToast('<span class="gold">✓</span> &nbsp;Position trouvée');
+      },
+      (err) => {
+        let msg = 'Impossible d\'obtenir votre position';
+        if (err.code === 1) msg = 'Autorisation refusée — veuillez l\'activer dans votre navigateur';
+        else if (err.code === 2) msg = 'Position indisponible — essayez en cliquant sur la carte';
+        else if (err.code === 3) msg = 'Délai dépassé — réessayez';
+        showToast('<span class="gold">!</span> &nbsp;' + msg);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  });
+
+  // Envoi WhatsApp
+  document.getElementById('send-whatsapp').addEventListener('click', () => {
+    const lat = document.getElementById('lat').value;
+    const lng = document.getElementById('lng').value;
+    if (!lat || !lng) {
+      showToast('<span class="gold">!</span> &nbsp;Veuillez d\'abord marquer votre emplacement');
+      return;
+    }
+    const name = document.getElementById('name').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const note = document.getElementById('note').value.trim();
+    const address = document.getElementById('address').value;
+
+    const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lng;
+
+    let msg = 'Bonjour HOME BY TIKA,\n\n';
+    msg += 'Je vous partage ma localisation pour la livraison / installation :\n\n';
+    if (name) msg += 'Nom : ' + name + '\n';
+    if (phone) msg += 'Téléphone : ' + phone + '\n';
+    if (name || phone) msg += '\n';
+    msg += '📍 Coordonnées GPS : ' + lat + ', ' + lng + '\n';
+    if (address && !address.includes('Recherche')) msg += '📍 Adresse : ' + address + '\n';
+    msg += '📍 Google Maps : ' + mapsUrl + '\n';
+    if (note) msg += '\nNote : ' + note + '\n';
+    msg += '\nMerci !';
+
+    const waUrl = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(msg);
+    window.open(waUrl, '_blank');
+    showToast('<span class="gold">✓</span> &nbsp;WhatsApp ouvert — envoyez le message');
+  });
+
+})();
+</script>
+</body>
+</html>

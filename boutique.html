@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Boutique — HOME BY TIKA · Côte d'Ivoire</title>
+  <meta name="description" content="Découvrez la collection complète de mobilier et portes en bois massif de l'atelier HOME BY TIKA — Iroko, Framiré, Teck.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="index.html" class="brand"><img src="logo-mark.svg" alt="" class="brand-icon"><span class="brand-text">HOME BY <em>TIKA</em><small>BOIS MASSIF · CÔTE D'IVOIRE</small></span></a>
+    <ul class="nav-links">
+      <li><a href="index.html">Accueil</a></li>
+      <li><a href="boutique.html" class="active">Boutique</a></li>
+      <li><a href="apropos.html">Atelier</a></li>
+      <li><a href="contact.html">Contact</a></li>
+      <li><a href="localisation.html">Localisation</a></li>
+    </ul>
+    <div class="nav-actions">
+      <a href="panier.html" class="cart-btn">
+        Panier <span class="cart-count" id="cart-count">0</span>
+      </a>
+    </div>
+  </nav>
+</header>
+
+<main>
+
+  <section class="page-header">
+    <div class="container">
+      <span class="hero-eyebrow">Collection</span>
+      <h1>La boutique</h1>
+      <p>Mobilier et portes en bois massif, fabriqués à la main dans notre atelier d'Abidjan. Iroko, Framiré et Teck — chaque pièce est disponible en l'état ou personnalisable sur demande.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+
+      <div class="filters">
+        <button class="filter-btn active" data-filter="all">Tout</button>
+        <button class="filter-btn" data-filter="salons">Salons</button>
+        <button class="filter-btn" data-filter="tables">Tables</button>
+        <button class="filter-btn" data-filter="chaises">Chaises</button>
+        <button class="filter-btn" data-filter="lits">Lits</button>
+        <button class="filter-btn" data-filter="armoires">Armoires</button>
+        <button class="filter-btn" data-filter="cuisines">Cuisines</button>
+        <button class="filter-btn" data-filter="meublestv">Meubles TV</button>
+        <button class="filter-btn" data-filter="bureaux">Bureaux</button>
+        <button class="filter-btn" data-filter="exterieur">Extérieur (Teck)</button>
+        <button class="filter-btn" data-filter="portes">Portes</button>
+      </div>
+
+      <div class="product-grid" id="shop-grid"></div>
+
+      <div style="text-align:center; margin-top: 5rem; padding: 3rem; border: 1px solid var(--line); background: var(--bg-soft);">
+        <span class="hero-eyebrow">Sur-mesure</span>
+        <h2 style="margin-bottom: 1rem;">Une pièce unique pour vous ?</h2>
+        <p style="max-width: 580px; margin: 0 auto 2rem;">Dimensions, essence (Iroko, Framiré, Teck), finition : nous fabriquons votre meuble ou votre porte selon vos plans, vos contraintes et votre intérieur.</p>
+        <a href="contact.html" class="btn btn-primary">Demander un devis</a>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col footer-brand">
+        <a href="index.html" class="brand"><img src="logo-mark.svg" alt="" class="brand-icon"><span class="brand-text">HOME BY <em>TIKA</em><small>BOIS MASSIF · CÔTE D'IVOIRE</small></span></a>
+        <p>Spécialiste du mobilier en bois massif et des portes haut de gamme en Côte d'Ivoire — Iroko, Framiré, Teck.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Boutique</h4>
+        <ul>
+          <li><a href="boutique.html">Salons &amp; tables</a></li>
+          <li><a href="boutique.html">Lits &amp; armoires</a></li>
+          <li><a href="boutique.html">Cuisines</a></li>
+          <li><a href="boutique.html">Meubles TV &amp; bureaux</a></li>
+          <li><a href="boutique.html">Portes</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Maison</h4>
+        <ul>
+          <li><a href="apropos.html">L'atelier</a></li>
+          <li><a href="contact.html">Sur-mesure</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Services</h4>
+        <ul>
+          <li><a href="contact.html">Conception &amp; sur-mesure</a></li>
+          <li><a href="contact.html">Vernissage &amp; finition</a></li>
+          <li><a href="contact.html">Installation</a></li>
+          <li><a href="contact.html">Rénovation de meubles</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 HOME BY TIKA — Tous droits réservés</span>
+      <span>Atelier · Songon, Cité la Grâce — Abidjan · WhatsApp +225 07 48 73 86 71</span>
+      <span><a href="admin.html" class="gestion-link" title="Espace de gestion" aria-label="Espace de gestion">•••</a></span>
+    </div>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
