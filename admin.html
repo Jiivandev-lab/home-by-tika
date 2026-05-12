@@ -618,6 +618,8 @@
 
 <div class="progress" id="progress">Traitement en cours…</div>
 
+<script src="https://upload-widget.cloudinary.com/global/all.js" type="text/javascript"></script>
+<script src="config.js"></script>
 <script src="script.js"></script>
 <script>
 // ============================================================
@@ -626,7 +628,9 @@
 // Pour changer le mot de passe, modifiez la valeur ci-dessous.
 // (Ne le rendez pas trop simple — évitez "1234", "admin"…)
 // ============================================================
-const ADMIN_PASSWORD = '696933MARINA';
+// Lit le mot de passe depuis config.js (centralisé)
+// Fallback historique au cas où config.js ne soit pas encore chargé
+const ADMIN_PASSWORD = (window.HBT_CONFIG && window.HBT_CONFIG.admin && window.HBT_CONFIG.admin.password) || '696933MARINA';
 const AUTH_KEY = 'hbt-admin-auth';
 
 // Sécurité maximale : on supprime toute ancienne session persistante
@@ -889,22 +893,94 @@ function isAuthed() {
     if (statVideos) statVideos.textContent = Object.keys(VIDEO_URLS).length;
   }
 
+  /* ===== Cloudinary — upload direct (unsigned preset) ===== */
+  async function uploadToCloudinary(file, opts) {
+    if (!window.Cloudinary || !Cloudinary.isConfigured()) {
+      throw new Error('Cloudinary non configuré');
+    }
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('upload_preset', Cloudinary.uploadPreset());
+    if (opts.folder)   fd.append('folder',   opts.folder);
+    if (opts.publicId) fd.append('public_id', opts.publicId);
+    if (opts.tags)     fd.append('tags',     Array.isArray(opts.tags) ? opts.tags.join(',') : opts.tags);
+    fd.append('overwrite', 'true');
+    fd.append('invalidate', 'true');
+    const rt = opts.resourceType || 'image';
+    const url = 'https://api.cloudinary.com/v1_1/' + Cloudinary.cloudName() + '/' + rt + '/upload';
+    const res = await fetch(url, { method: 'POST', body: fd });
+    if (!res.ok) {
+      const t = await res.text();
+      throw new Error('Cloudinary ' + res.status + ': ' + t);
+    }
+    return await res.json();
+  }
+
+  /* Bandeau d'état Cloudinary dans le header de l'admin */
+  function showCloudStatus() {
+    const ok = window.Cloudinary && Cloudinary.isConfigured();
+    const banner = document.querySelector('.admin-banner');
+    if (!banner || banner.querySelector('.cloud-status')) return;
+    const tag = document.createElement('div');
+    tag.className = 'cloud-status';
+    tag.style.cssText = 'margin-top:1rem; padding:0.6rem 0.9rem; font-size:0.85rem; letter-spacing:0.5px; border-radius:2px;';
+    if (ok) {
+      tag.style.background = 'rgba(46, 138, 86, 0.12)';
+      tag.style.border = '1px solid rgba(46, 138, 86, 0.45)';
+      tag.style.color = '#2e8a56';
+      tag.innerHTML = '☁ <strong>Cloudinary connecté</strong> — cloud : <code>' + Cloudinary.cloudName() + '</code>. Les uploads sont sauvegardés dans le cloud et visibles sur tous les appareils.';
+    } else {
+      tag.style.background = 'rgba(196, 91, 91, 0.10)';
+      tag.style.border = '1px solid rgba(196, 91, 91, 0.40)';
+      tag.style.color = '#a64545';
+      tag.innerHTML = '⚠ <strong>Cloudinary non configuré</strong> — les uploads restent locaux (visibles uniquement sur cet appareil). Renseignez <code>cloudName</code> et créez un upload preset « ' + (window.HBT_CONFIG ? window.HBT_CONFIG.cloudinary.uploadPreset : 'home_by_tika') + ' » dans <code>config.js</code>.';
+    }
+    banner.appendChild(tag);
+  }
+  if (document.readyState !== 'loading') showCloudStatus();
+  else document.addEventListener('DOMContentLoaded', showCloudStatus);
+
   async function handleFile(id, file) {
     if (!file || !file.type.startsWith('image/')) {
       showToast('<span class="gold">!</span> &nbsp;Fichier non valide — choisissez une image');
       return;
     }
+    const p = CATALOG.find(c => c.id === id);
+    const productName = p ? getField(p, 'name') : id;
     progress.classList.add('show');
+
+    // ▼▼▼ CLOUDINARY (cloud) — visible sur tous les appareils ▼▼▼
+    if (window.Cloudinary && Cloudinary.isConfigured()) {
+      progress.textContent = 'Upload vers Cloudinary…';
+      try {
+        await uploadToCloudinary(file, {
+          folder: Cloudinary.folders().produits,
+          publicId: id,
+          tags: [Cloudinary.tags().product],
+          resourceType: 'image'
+        });
+        await loadCloudCache();
+        showToast(`<span class="gold">☁</span> &nbsp;Photo cloud — ${productName}`);
+        renderGrid();
+      } catch (err) {
+        console.error(err);
+        showToast('<span class="gold">!</span> &nbsp;Échec cloud — vérifiez votre upload preset (mode Unsigned)');
+      } finally {
+        progress.classList.remove('show');
+      }
+      return;
+    }
+
+    // ▼▼▼ FALLBACK LOCAL (localStorage) ▼▼▼
     progress.textContent = 'Traitement de la photo…';
     try {
       const dataUrl = await compressImage(file);
       Photos.set(id, dataUrl);
-      const p = CATALOG.find(c => c.id === id);
-      showToast(`<span class="gold">✓</span> &nbsp;Photo enregistrée — ${p ? getField(p,'name') : ''}`);
+      showToast(`<span class="gold">✓</span> &nbsp;Photo locale — ${productName}`);
       renderGrid();
     } catch (err) {
       if ((err && err.name === 'QuotaExceededError') || /quota/i.test(String(err))) {
-        showToast('<span class="gold">!</span> &nbsp;Espace localStorage plein — réduisez la taille des photos');
+        showToast('<span class="gold">!</span> &nbsp;Espace localStorage plein — configurez Cloudinary');
       } else {
         showToast('<span class="gold">!</span> &nbsp;Erreur lors du traitement');
       }
@@ -945,20 +1021,46 @@ function isAuthed() {
       showToast('<span class="gold">!</span> &nbsp;Fichier non valide — choisissez une image');
       return;
     }
+    const slot = SITE_IMAGE_SLOTS.find(s => s.key === key);
     progress.classList.add('show');
+
+    // ▼▼▼ CLOUDINARY ▼▼▼
+    if (window.Cloudinary && Cloudinary.isConfigured()) {
+      progress.textContent = 'Upload vers Cloudinary…';
+      try {
+        const tag = key === 'hero-bg' ? Cloudinary.tags().siteHero : Cloudinary.tags().siteAtelier;
+        await uploadToCloudinary(file, {
+          folder: Cloudinary.folders().site,
+          publicId: key,
+          tags: [tag],
+          resourceType: 'image'
+        });
+        await loadCloudCache();
+        applySiteImages();
+        showToast(`<span class="gold">☁</span> &nbsp;${slot ? slot.title : key} mis à jour (cloud)`);
+        renderSiteImages();
+        updateStats();
+      } catch (err) {
+        console.error(err);
+        showToast('<span class="gold">!</span> &nbsp;Échec cloud — vérifiez Cloudinary');
+      } finally {
+        progress.classList.remove('show');
+      }
+      return;
+    }
+
+    // ▼▼▼ FALLBACK LOCAL ▼▼▼
     progress.textContent = 'Traitement de l\'image…';
     try {
-      // Atelier (carré) : 1600 px / Hero (paysage) : 2200 px
       const maxW = key === 'hero-bg' ? 2200 : 1600;
       const dataUrl = await compressImageBig(file, maxW);
       SiteImages.set(key, dataUrl);
-      const slot = SITE_IMAGE_SLOTS.find(s => s.key === key);
-      showToast(`<span class="gold">✓</span> &nbsp;${slot ? slot.title : key} mis à jour`);
+      showToast(`<span class="gold">✓</span> &nbsp;${slot ? slot.title : key} mis à jour (local)`);
       renderSiteImages();
       updateStats();
     } catch (err) {
       if ((err && err.name === 'QuotaExceededError') || /quota/i.test(String(err))) {
-        showToast('<span class="gold">!</span> &nbsp;Espace plein — réduisez d\'abord les photos produits ou la taille de l\'image');
+        showToast('<span class="gold">!</span> &nbsp;Espace plein — configurez Cloudinary');
       } else {
         showToast('<span class="gold">!</span> &nbsp;Erreur lors du traitement');
       }
@@ -967,24 +1069,56 @@ function isAuthed() {
     }
   }
 
-  // Gestion vidéo : stockage dans IndexedDB
+  // Gestion vidéo : Cloudinary (cloud) > IndexedDB (local)
   async function handleVideo(id, file) {
     if (!file || !file.type.startsWith('video/')) {
       showToast('<span class="gold">!</span> &nbsp;Fichier non valide — choisissez une vidéo');
       return;
     }
-    const MAX_MB = 50;
-    if (file.size > MAX_MB * 1024 * 1024) {
-      showToast('<span class="gold">!</span> &nbsp;Vidéo trop lourde (max ' + MAX_MB + ' Mo) — compressez-la');
+    const p = CATALOG.find(c => c.id === id);
+    const productName = p ? getField(p, 'name') : id;
+    progress.classList.add('show');
+
+    // ▼▼▼ CLOUDINARY ▼▼▼
+    if (window.Cloudinary && Cloudinary.isConfigured()) {
+      const MAX_MB_CLD = 100;
+      if (file.size > MAX_MB_CLD * 1024 * 1024) {
+        showToast('<span class="gold">!</span> &nbsp;Vidéo trop lourde (max ' + MAX_MB_CLD + ' Mo)');
+        progress.classList.remove('show');
+        return;
+      }
+      progress.textContent = 'Upload vidéo vers Cloudinary…';
+      try {
+        await uploadToCloudinary(file, {
+          folder: Cloudinary.folders().videos,
+          publicId: id + '-video',
+          tags: [Cloudinary.tags().productVideo],
+          resourceType: 'video'
+        });
+        await loadCloudCache();
+        showToast(`<span class="gold">☁</span> &nbsp;Vidéo cloud — ${productName}`);
+        renderGrid();
+      } catch (err) {
+        console.error(err);
+        showToast('<span class="gold">!</span> &nbsp;Échec upload vidéo cloud');
+      } finally {
+        progress.classList.remove('show');
+      }
       return;
     }
-    progress.classList.add('show');
-    progress.textContent = 'Enregistrement de la vidéo…';
+
+    // ▼▼▼ FALLBACK LOCAL (IndexedDB) ▼▼▼
+    const MAX_MB = 50;
+    if (file.size > MAX_MB * 1024 * 1024) {
+      showToast('<span class="gold">!</span> &nbsp;Vidéo trop lourde (max ' + MAX_MB + ' Mo en mode local — configurez Cloudinary)');
+      progress.classList.remove('show');
+      return;
+    }
+    progress.textContent = 'Enregistrement local de la vidéo…';
     try {
       await VideoDB.set(id, file, { type: file.type, name: file.name, size: file.size });
       await loadVideoCache();
-      const p = CATALOG.find(c => c.id === id);
-      showToast(`<span class="gold">✓</span> &nbsp;Vidéo enregistrée — ${p ? getField(p,'name') : ''}`);
+      showToast(`<span class="gold">✓</span> &nbsp;Vidéo locale — ${productName}`);
       renderGrid();
     } catch (err) {
       showToast('<span class="gold">!</span> &nbsp;Erreur lors de l\'enregistrement de la vidéo');

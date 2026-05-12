@@ -3,6 +3,87 @@
    Mobilier & portes en bois massif — Côte d'Ivoire
    ========================================= */
 
+/* ============================================================
+   CLOUDINARY — Hébergement cloud des photos & vidéos
+   ----------------------------------------------------------
+   Les helpers ci-dessous construisent les URLs et gèrent
+   les galeries automatiques. La configuration vient de config.js.
+   ============================================================ */
+const CLD = {
+  isReady() {
+    return window.HBT_CONFIG && window.HBT_CONFIG.isCloudinaryReady();
+  },
+  cloudName() {
+    return window.HBT_CONFIG && window.HBT_CONFIG.cloudinary.cloudName;
+  },
+  /* Construit une URL Cloudinary optimisée (auto-format, auto-qualité, dimension) */
+  url(publicId, options) {
+    if (!this.isReady() || !publicId) return null;
+    options = options || {};
+    const t = ['f_auto', 'q_auto'];
+    if (options.w) t.push('w_' + options.w);
+    if (options.h) t.push('h_' + options.h);
+    if (options.crop) t.push('c_' + options.crop);
+    if (options.dpr) t.push('dpr_' + options.dpr);
+    return 'https://res.cloudinary.com/' + this.cloudName() +
+           '/image/upload/' + t.join(',') + '/' + publicId;
+  },
+  /* URL pour une vidéo */
+  videoUrl(publicId, options) {
+    if (!this.isReady() || !publicId) return null;
+    options = options || {};
+    const t = ['f_auto', 'q_auto'];
+    if (options.w) t.push('w_' + options.w);
+    return 'https://res.cloudinary.com/' + this.cloudName() +
+           '/video/upload/' + t.join(',') + '/' + publicId;
+  },
+  /* Galerie automatique — liste publique des ressources par tag */
+  async listByTag(tag, type) {
+    if (!this.isReady()) return [];
+    type = type || 'image';
+    try {
+      const res = await fetch('https://res.cloudinary.com/' + this.cloudName() +
+                              '/' + type + '/list/' + tag + '.json',
+                              { cache: 'no-store' });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.resources || [];
+    } catch (e) { return []; }
+  }
+};
+
+/* URL Cloudinary conventionnelle pour la photo principale d'un produit */
+function cloudinaryProductImage(id, w) {
+  if (!CLD.isReady() || !id) return null;
+  const folder = window.HBT_CONFIG.cloudinary.folders.produits;
+  return CLD.url(folder + '/' + id, { w: w || 1200, crop: 'fill' });
+}
+
+/* URL Cloudinary pour la vidéo principale d'un produit */
+function cloudinaryProductVideo(id, w) {
+  if (!CLD.isReady() || !id) return null;
+  const folder = window.HBT_CONFIG.cloudinary.folders.videos;
+  return CLD.videoUrl(folder + '/' + id, { w: w || 1200 });
+}
+
+/* Gestion globale d'erreur d'image : remplace par le monogramme */
+window.HBT_imageError = function(imgEl, monogram) {
+  try {
+    const container = imgEl.parentNode;
+    if (container) {
+      container.classList.remove('has-photo');
+      imgEl.style.display = 'none';
+      if (!container.querySelector('.icon')) {
+        const icon = document.createElement('div');
+        icon.className = 'icon';
+        icon.textContent = monogram || '';
+        container.appendChild(icon);
+      }
+    }
+  } catch (e) {}
+};
+
+
 // Catalogue (source de vérité unique)
 const CATALOG = [
   // ===== SALONS =====
@@ -253,12 +334,87 @@ const SiteImages = {
   }
 };
 
-/* Applique les images du site (atelier, fond hero) sur les éléments du DOM */
-function applySiteImages() {
-  const atelier = SiteImages.get('atelier');
-  const heroBg = SiteImages.get('hero-bg');
+/* ---------- Cloudinary : cache des médias disponibles ---------- */
+// Au chargement de la page, on liste les médias présents dans le cloud
+// pour savoir lesquels sont disponibles (sinon on tomberait sur du 404).
+const CloudCache = {
+  products: {},        // { 'por-01': cloudUrl, ... }
+  productVideos: {},   // { 'por-01': cloudVideoUrl, ... }
+  siteAtelier: null,
+  siteHero: null,
+  galleries: {}        // { 'portes': [{url, ...}], ... }
+};
 
-  // Atelier : appliqué à toutes les .story-image présentes sur la page
+async function loadCloudCache() {
+  if (!window.Cloudinary || !Cloudinary.isConfigured()) return;
+  const TAGS = (window.CLOUDINARY_CONFIG && window.CLOUDINARY_CONFIG.tags) || {};
+
+  // 1. Photos produits
+  try {
+    const list = await Cloudinary.listByTag(TAGS.product, 'image');
+    list.forEach(r => {
+      const id = (r.public_id || '').split('/').pop();
+      if (id) {
+        CloudCache.products[id] = Cloudinary.productImageUrl(id, { width: 1000 });
+      }
+    });
+  } catch (e) {}
+
+  // 2. Vidéos produits
+  try {
+    const list = await Cloudinary.listByTag(TAGS.productVideo, 'video');
+    list.forEach(r => {
+      const raw = (r.public_id || '').split('/').pop();
+      // public_id se termine par "-video", on retire ce suffixe
+      const id = raw.replace(/-video$/, '');
+      if (id) {
+        CloudCache.productVideos[id] = Cloudinary.productVideoUrl(id, { width: 900 });
+      }
+    });
+  } catch (e) {}
+
+  // 3. Image atelier (site)
+  try {
+    const list = await Cloudinary.listByTag(TAGS.siteAtelier, 'image');
+    if (list.length) CloudCache.siteAtelier = Cloudinary.siteImageUrl('atelier', { width: 1400 });
+  } catch (e) {}
+
+  // 4. Fond hero (site)
+  try {
+    const list = await Cloudinary.listByTag(TAGS.siteHero, 'image');
+    if (list.length) CloudCache.siteHero = Cloudinary.siteImageUrl('hero-bg', { width: 2200 });
+  } catch (e) {}
+
+  // 5. Galeries (chargées à la demande par chaque page qui en a besoin)
+}
+
+async function loadGallery(name) {
+  if (!window.Cloudinary || !Cloudinary.isConfigured()) return [];
+  const TAGS = (window.CLOUDINARY_CONFIG && window.CLOUDINARY_CONFIG.tags) || {};
+  const key = 'gallery' + name.charAt(0).toUpperCase() + name.slice(1);
+  const tag = TAGS[key];
+  if (!tag) return [];
+  const type = name === 'videos' ? 'video' : 'image';
+  const list = await Cloudinary.listByTag(tag, type);
+  CloudCache.galleries[name] = list.map(r => ({
+    publicId: r.public_id,
+    url: type === 'video'
+      ? Cloudinary.url(r.public_id, { resourceType: 'video', width: 900 })
+      : Cloudinary.url(r.public_id, { width: 900, quality: 'auto', format: 'auto' }),
+    thumbUrl: Cloudinary.url(r.public_id, {
+      resourceType: type, width: 500, crop: 'fill', gravity: 'auto'
+    }),
+    width: r.width, height: r.height, type
+  }));
+  return CloudCache.galleries[name];
+}
+
+/* Applique les images du site (atelier, fond hero) sur les éléments du DOM
+   Priorité : Cloudinary > localStorage > défaut */
+function applySiteImages() {
+  const atelier = CloudCache.siteAtelier || SiteImages.get('atelier');
+  const heroBg  = CloudCache.siteHero    || SiteImages.get('hero-bg');
+
   document.querySelectorAll('.story-image').forEach(el => {
     if (atelier) {
       el.style.backgroundImage = `url("${atelier}")`;
@@ -269,7 +425,6 @@ function applySiteImages() {
     }
   });
 
-  // Fond principal : appliqué à .hero
   const hero = document.querySelector('.hero');
   if (hero) {
     if (heroBg) {
@@ -355,17 +510,25 @@ function productCardHTML(p) {
   const label = getField(p, 'label');
   const monogram = getField(p, 'monogram');
 
-  // Médias : priorité vidéo > photo > image par défaut > monogramme
-  const videoUrl = getVideoUrl(p.id);
-  const uploaded = Photos.get(p.id);
-  const img = uploaded || p.image || null;
-  const hasMedia = !!(videoUrl || img);
+  // Médias — priorité Cloudinary (uniquement si réellement uploadé)
+  // > vidéo locale > photo locale > image par défaut > monogramme
+  const cldVideo = CloudCache.productVideos[p.id] || null;
+  const localVideo = getVideoUrl(p.id);
+  const videoSrc = cldVideo || localVideo || null;
+
+  const cldImg = CloudCache.products[p.id] || null;
+  const localImg = Photos.get(p.id);
+  const imgSrc = cldImg || localImg || p.image || null;
+
+  const hasMedia = !!(videoSrc || imgSrc);
 
   let mediaHtml;
-  if (videoUrl) {
-    mediaHtml = `<video class="product-video" src="${videoUrl}" autoplay muted loop playsinline preload="metadata"></video>`;
-  } else if (img) {
-    mediaHtml = `<img src="${img}" alt="${name}" class="product-photo" loading="lazy">`;
+  if (videoSrc) {
+    mediaHtml = `<video class="product-video" src="${videoSrc}" autoplay muted loop playsinline preload="metadata"
+                        onerror="HBT_imageError(this, '${monogram || ''}')"></video>`;
+  } else if (imgSrc) {
+    mediaHtml = `<img src="${imgSrc}" alt="${name}" class="product-photo" loading="lazy" decoding="async"
+                      onerror="HBT_imageError(this, '${monogram || ''}')">`;
   } else {
     mediaHtml = `<div class="icon">${monogram || ''}</div>`;
   }
@@ -380,7 +543,7 @@ function productCardHTML(p) {
       <div class="product-body">
         <span class="product-cat">${cat || ''}</span>
         <h3 class="product-name">${name || ''}</h3>
-        <p style="font-size:0.92rem;">${desc || ''}</p>
+        <p class="product-desc">${desc || ''}</p>
         <div class="product-foot">
           <span class="product-price">${fcfa(getPrice(p))}</span>
           <button class="add-btn" data-add="${p.id}">Ajouter</button>
@@ -540,10 +703,23 @@ function injectWhatsApp() {
 document.addEventListener('DOMContentLoaded', async () => {
   Cart.refreshBadge();
   injectWhatsApp();
+
+  // Pré-charge en parallèle : cache Cloudinary + cache vidéos locales
+  try {
+    await Promise.all([
+      loadCloudCache().catch(() => {}),
+      loadVideoCache().catch(() => {})
+    ]);
+  } catch (e) { /* ignore */ }
+
+  // Applique les images du site (atelier, fond hero) avec priorité Cloudinary
   applySiteImages();
-  // Pré-charge les vidéos d'IndexedDB puis rend les produits
-  try { await loadVideoCache(); } catch (e) { /* ignore */ }
+
+  // Rend les grilles de produits
   renderProducts('home-grid', 'all', 4);
   renderProducts('shop-grid', 'all');
   renderCartPage();
+
+  // Galerie automatique sur les pages qui en ont besoin
+  if (typeof renderAutoGalleries === 'function') renderAutoGalleries();
 });

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Galerie — HOME BY TIKA</title>
+  <meta name="description" content="Galerie de réalisations HOME BY TIKA : portes, mobilier, atelier, collections — mise à jour automatique depuis Cloudinary.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .gallery-tabs {
+      display: flex;
+      gap: 0.6rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 3rem;
+    }
+    .gallery-tab {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--ivory);
+      padding: 0.7rem 1.5rem;
+      font-size: 0.83rem;
+      font-weight: 600;
+      letter-spacing: 2.3px;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-radius: 999px;
+      transition: all 0.25s ease;
+      font-family: var(--sans);
+    }
+    .gallery-tab:hover { border-color: var(--gold); color: var(--gold); transform: translateY(-1px); }
+    .gallery-tab.active { background: var(--gold); border-color: var(--gold); color: #fff; }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+    .gallery-item {
+      position: relative;
+      aspect-ratio: 4/5;
+      overflow: hidden;
+      border-radius: 4px;
+      background: linear-gradient(135deg, #f4ead2 0%, #e8dcbf 100%);
+      border: 1px solid var(--line);
+      cursor: zoom-in;
+      transition: transform 0.4s cubic-bezier(0.4,0,0.2,1), box-shadow 0.4s ease, border-color 0.3s ease;
+      animation: hbt-fade-in 0.55s cubic-bezier(0.4, 0, 0.2, 1) both;
+    }
+    .gallery-item:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 18px 36px rgba(60, 48, 32, 0.12);
+      border-color: var(--gold);
+    }
+    .gallery-item img, .gallery-item video {
+      width: 100%; height: 100%;
+      object-fit: cover; display: block;
+      transition: transform 0.7s cubic-bezier(0.2,0,0.2,1);
+    }
+    .gallery-item:hover img,
+    .gallery-item:hover video { transform: scale(1.05); }
+
+    .gallery-empty {
+      text-align: center;
+      padding: 4rem 2rem;
+      border: 1px dashed var(--line);
+      border-radius: 4px;
+      color: var(--muted);
+      background: var(--bg-soft);
+    }
+    .gallery-empty p { color: var(--muted); margin-top: 0.6rem; }
+
+    /* Lightbox */
+    .lightbox {
+      position: fixed; inset: 0;
+      background: rgba(20, 16, 12, 0.92);
+      backdrop-filter: blur(6px);
+      z-index: 9999;
+      display: none;
+      align-items: center; justify-content: center;
+      padding: 2rem;
+    }
+    .lightbox.show { display: flex; }
+    .lightbox img, .lightbox video {
+      max-width: 92vw;
+      max-height: 88vh;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      border-radius: 2px;
+    }
+    .lightbox-close {
+      position: absolute; top: 1.2rem; right: 1.6rem;
+      background: transparent; border: 1px solid rgba(255,255,255,0.4);
+      color: #fff; font-size: 1.4rem; line-height: 1;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .lightbox-close:hover { background: rgba(255,255,255,0.15); }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="index.html" class="brand"><img src="logo-mark.svg" alt="" class="brand-icon"><span class="brand-text">HOME BY <em>TIKA</em><small>BOIS MASSIF · CÔTE D'IVOIRE</small></span></a>
+    <ul class="nav-links">
+      <li><a href="index.html">Accueil</a></li>
+      <li><a href="boutique.html">Boutique</a></li>
+      <li><a href="galerie.html" class="active">Galerie</a></li>
+      <li><a href="apropos.html">Atelier</a></li>
+      <li><a href="contact.html">Contact</a></li>
+    </ul>
+    <div class="nav-actions">
+      <a href="panier.html" class="cart-btn">
+        Panier <span class="cart-count" id="cart-count">0</span>
+      </a>
+    </div>
+  </nav>
+</header>
+
+<main>
+
+  <section class="page-header">
+    <div class="container">
+      <span class="hero-eyebrow">Nos réalisations</span>
+      <h1>La galerie</h1>
+      <p>Portes, mobilier, ambiances d'atelier, collections — un aperçu de notre savoir-faire ivoirien. Les nouvelles photos apparaissent automatiquement.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+
+      <div class="gallery-tabs">
+        <button type="button" class="gallery-tab active" data-gallery="portes">Portes</button>
+        <button type="button" class="gallery-tab" data-gallery="mobilier">Mobilier</button>
+        <button type="button" class="gallery-tab" data-gallery="atelier">Atelier</button>
+        <button type="button" class="gallery-tab" data-gallery="collections">Collections</button>
+        <button type="button" class="gallery-tab" data-gallery="videos">Vidéos</button>
+      </div>
+
+      <div id="gallery-content"></div>
+
+    </div>
+  </section>
+
+</main>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox">
+  <button type="button" class="lightbox-close" aria-label="Fermer">×</button>
+  <div id="lightbox-content"></div>
+</div>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col footer-brand">
+        <a href="index.html" class="brand"><img src="logo-mark.svg" alt="" class="brand-icon"><span class="brand-text">HOME BY <em>TIKA</em><small>BOIS MASSIF · CÔTE D'IVOIRE</small></span></a>
+        <p>Spécialiste du mobilier en bois massif et des portes haut de gamme en Côte d'Ivoire — Iroko, Framiré, Teck.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Navigation</h4>
+        <ul>
+          <li><a href="boutique.html">Boutique</a></li>
+          <li><a href="galerie.html">Galerie</a></li>
+          <li><a href="apropos.html">L'atelier</a></li>
+          <li><a href="contact.html">Contact</a></li>
+          <li><a href="localisation.html">Localisation</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Services</h4>
+        <ul>
+          <li><a href="contact.html">Conception &amp; sur-mesure</a></li>
+          <li><a href="contact.html">Vernissage &amp; finition</a></li>
+          <li><a href="contact.html">Installation</a></li>
+          <li><a href="contact.html">Rénovation</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <ul>
+          <li>+225 07 48 73 86 71</li>
+          <li>Songon, Cité la Grâce</li>
+          <li>Abidjan, Côte d'Ivoire</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 HOME BY TIKA — Tous droits réservés</span>
+      <span>Atelier · Songon, Cité la Grâce — Abidjan · WhatsApp +225 07 48 73 86 71</span>
+      <span><a href="admin.html" class="gestion-link" title="Espace de gestion" aria-label="Espace de gestion">•••</a></span>
+    </div>
+  </div>
+</footer>
+
+<script src="config.js"></script>
+<script src="script.js"></script>
+<script>
+(function(){
+  const tabs = document.querySelectorAll('.gallery-tab');
+  const content = document.getElementById('gallery-content');
+  const lightbox = document.getElementById('lightbox');
+  const lightboxContent = document.getElementById('lightbox-content');
+  const closeBtn = lightbox.querySelector('.lightbox-close');
+
+  let currentGallery = 'portes';
+
+  async function showGallery(name) {
+    currentGallery = name;
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.gallery === name));
+    content.innerHTML = '<div style="text-align:center; padding: 3rem; color: var(--muted);">Chargement…</div>';
+
+    // Cloudinary requis pour la galerie auto
+    if (!window.Cloudinary || !Cloudinary.isConfigured()) {
+      content.innerHTML = `
+        <div class="gallery-empty">
+          <h3 style="margin-bottom:0.6rem;">Galerie non configurée</h3>
+          <p>Configurez Cloudinary dans <code>config.js</code> pour que vos photos uploadées dans le dossier
+          <strong>${name}</strong> apparaissent automatiquement ici.</p>
+        </div>`;
+      return;
+    }
+
+    const items = await loadGallery(name);
+
+    if (!items || items.length === 0) {
+      content.innerHTML = `
+        <div class="gallery-empty">
+          <h3 style="margin-bottom:0.6rem;">Aucun média dans « ${name} »</h3>
+          <p>Uploadez des médias dans Cloudinary avec le tag <code>${(window.HBT_CONFIG && window.HBT_CONFIG.cloudinary.tags['gallery' + name.charAt(0).toUpperCase() + name.slice(1)]) || '—'}</code> et ils apparaîtront ici automatiquement.</p>
+        </div>`;
+      return;
+    }
+
+    content.innerHTML = '<div class="gallery-grid">' +
+      items.map((it, idx) => {
+        if (it.type === 'video') {
+          return `<div class="gallery-item" data-idx="${idx}">
+            <video src="${it.url}" muted loop playsinline autoplay preload="metadata"></video>
+          </div>`;
+        }
+        return `<div class="gallery-item" data-idx="${idx}">
+          <img src="${it.thumbUrl}" alt="" loading="lazy" decoding="async">
+        </div>`;
+      }).join('') +
+      '</div>';
+
+    // Click → lightbox
+    content.querySelectorAll('.gallery-item').forEach((el, idx) => {
+      el.addEventListener('click', () => openLightbox(items[idx]));
+    });
+  }
+
+  function openLightbox(item) {
+    if (!item) return;
+    if (item.type === 'video') {
+      lightboxContent.innerHTML = `<video src="${item.url}" controls autoplay loop playsinline></video>`;
+    } else {
+      lightboxContent.innerHTML = `<img src="${item.url}" alt="">`;
+    }
+    lightbox.classList.add('show');
+  }
+  function closeLightbox() {
+    lightbox.classList.remove('show');
+    lightboxContent.innerHTML = '';
+  }
+  closeBtn.addEventListener('click', closeLightbox);
+  lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
+
+  tabs.forEach(t => t.addEventListener('click', () => showGallery(t.dataset.gallery)));
+
+  // Lancement
+  document.addEventListener('DOMContentLoaded', () => showGallery('portes'));
+})();
+</script>
+</body>
+</html>

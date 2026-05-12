@@ -1500,3 +1500,269 @@ main { flex: 1; }
   .newsletter-form { flex-direction: column; gap: 0.5rem; }
   .newsletter-form input { border-right: 1px solid var(--line); padding: 0.9rem 1rem; }
 }
+
+/* =================================================================
+   ÉLÉVATION PREMIUM v2 — Typographie renforcée, cartes plus présentes,
+   ombres et animations soignées. Conserve l'identité visuelle.
+   ================================================================= */
+
+/* Charge des graisses supplémentaires (medium/semibold) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap');
+
+/* --- TYPO de base, plus présente --- */
+body {
+  font-size: 16.5px;
+  line-height: 1.7;
+  font-weight: 400;
+  color: var(--text);
+}
+p { font-weight: 400; }
+strong, b { font-weight: 600; color: var(--ivory); }
+
+h1, h2, h3, h4 {
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+h1 { font-size: clamp(2.7rem, 5.2vw, 4.8rem); line-height: 1.08; }
+h2 { font-size: clamp(2.1rem, 3.7vw, 2.95rem); line-height: 1.15; letter-spacing: 0.2px; }
+h3 { font-size: 1.55rem; line-height: 1.25; font-weight: 600; }
+
+/* --- HERO --- */
+.hero-eyebrow,
+.section-head .eyebrow {
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 4.5px;
+}
+.hero-lede {
+  font-size: 1.18rem;
+  line-height: 1.65;
+  color: var(--ivory-dim);
+  font-weight: 400;
+}
+
+/* --- NAVIGATION premium --- */
+.nav { padding-top: 1.6rem; padding-bottom: 1.6rem; }
+.brand-text { font-size: 1.3rem; letter-spacing: 3px; font-weight: 600; }
+.brand small { font-size: 0.62rem; letter-spacing: 3.5px; font-weight: 500; }
+.nav-links a {
+  font-size: 0.83rem;
+  font-weight: 500;
+  letter-spacing: 2.5px;
+}
+.cart-btn {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 2.5px;
+  padding: 0.7rem 1.35rem;
+}
+
+/* --- BOUTONS plus présents --- */
+.btn {
+  padding: 1.05rem 2.55rem;
+  font-size: 0.84rem;
+  letter-spacing: 3px;
+  font-weight: 600;
+  box-shadow: 0 1px 0 rgba(60, 48, 32, 0.04);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(156, 110, 48, 0.20);
+}
+.btn-primary {
+  background: linear-gradient(180deg, var(--gold-light) 0%, var(--gold) 100%);
+  border-color: var(--gold);
+  color: #fff;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.1);
+}
+.btn-primary:hover {
+  background: linear-gradient(180deg, #c89968 0%, var(--gold) 100%);
+  color: #fff;
+}
+
+/* --- CARTES PRODUITS premium --- */
+.product-card {
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(60, 48, 32, 0.04);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.3s ease;
+}
+.product-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 40px rgba(60, 48, 32, 0.12),
+              0 2px 6px rgba(60, 48, 32, 0.06);
+  border-color: var(--gold);
+}
+.product-cat {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 3.5px;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+.product-name {
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--ivory);
+  margin: 0.4rem 0 0.5rem;
+  line-height: 1.2;
+}
+.product-desc {
+  font-size: 0.93rem;
+  line-height: 1.55;
+  color: var(--ivory-dim);
+}
+.product-price {
+  font-family: var(--serif);
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--gold);
+}
+.add-btn {
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 2.5px;
+  padding: 0.6rem 1.1rem;
+  background: var(--ivory);
+  color: var(--bg);
+  border-color: var(--ivory);
+}
+.add-btn:hover {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #fff;
+}
+
+/* Effet de zoom doux sur la photo au hover de la carte */
+.product-image { overflow: hidden; }
+.product-photo, .product-video {
+  transition: transform 0.7s cubic-bezier(0.2, 0, 0.2, 1);
+}
+.product-card:hover .product-photo,
+.product-card:hover .product-video {
+  transform: scale(1.05);
+}
+
+/* Wood-tag + label : plus contrastés sur fond clair */
+.wood-tag {
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--gold);
+  border-color: var(--gold);
+  font-weight: 600;
+  font-size: 0.7rem;
+  letter-spacing: 2.2px;
+  backdrop-filter: blur(6px);
+  padding: 0.3rem 0.75rem;
+}
+.label {
+  background: var(--gold);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  box-shadow: 0 2px 8px rgba(156, 110, 48, 0.25);
+}
+
+/* --- SECTIONS plus aérées --- */
+.section { padding: 8rem 0; }
+.section-head { margin-bottom: 4.5rem; }
+.section-head p {
+  font-size: 1.08rem;
+  line-height: 1.65;
+}
+
+/* --- ESSENCES — cartes plus généreuses --- */
+.essence-card { border-radius: 4px; box-shadow: 0 2px 6px rgba(60, 48, 32, 0.05); }
+.essence-card:hover {
+  box-shadow: 0 18px 36px rgba(60, 48, 32, 0.10),
+              0 2px 4px rgba(60, 48, 32, 0.05);
+}
+.essence-visual { height: 220px; }
+.essence-body h3 { font-size: 1.6rem; }
+.essence-body .props li {
+  font-size: 0.94rem;
+  font-weight: 500;
+}
+
+/* --- SERVICE CARDS plus appuyées --- */
+.service-card {
+  background: var(--bg-card);
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(60, 48, 32, 0.05);
+}
+.service-card:hover {
+  box-shadow: 0 18px 36px rgba(60, 48, 32, 0.10),
+              0 2px 4px rgba(60, 48, 32, 0.05);
+}
+.service-card h3 { font-size: 1.9rem; font-weight: 600; }
+.service-card p { font-size: 1.02rem; }
+.service-card li { font-size: 0.98rem; font-weight: 500; }
+
+/* --- FILTRES boutique --- */
+.filter-btn {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 2.3px;
+  padding: 0.7rem 1.55rem;
+  border-radius: 999px;
+  border-color: var(--line);
+}
+.filter-btn:hover { transform: translateY(-1px); }
+
+/* --- HOVER global plus doux --- */
+a, button { transition: color 0.25s, background 0.25s, border-color 0.25s, transform 0.25s; }
+
+/* --- IMAGES : fade-in à l'apparition --- */
+@keyframes hbt-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.product-card { animation: hbt-fade-in 0.55s cubic-bezier(0.4, 0, 0.2, 1) both; }
+.essence-card { animation: hbt-fade-in 0.55s cubic-bezier(0.4, 0, 0.2, 1) both; }
+
+/* --- LAZY images en cours de chargement --- */
+img[loading="lazy"] {
+  background: linear-gradient(90deg,
+    var(--bg-soft) 25%,
+    var(--line) 50%,
+    var(--bg-soft) 75%);
+  background-size: 200% 100%;
+}
+img.product-photo { background: none; }
+
+/* --- MOBILE optimisé --- */
+@media (max-width: 720px) {
+  body { font-size: 16px; line-height: 1.65; }
+  h1 { font-size: clamp(2.2rem, 8vw, 3rem); }
+  h2 { font-size: clamp(1.7rem, 6vw, 2.2rem); }
+  .section { padding: 4.5rem 0; }
+  .section-head { margin-bottom: 2.5rem; }
+  .hero-lede { font-size: 1.05rem; }
+  .btn { padding: 0.95rem 2rem; font-size: 0.82rem; }
+  .product-name { font-size: 1.2rem; }
+  .product-price { font-size: 1.18rem; }
+  .nav-links { display: none; }
+  .nav { padding: 1.1rem 1.2rem; }
+  .brand-text { font-size: 1.05rem; }
+}
+
+/* --- BANNIÈRE CTA boostée --- */
+.cta-banner {
+  background:
+    radial-gradient(900px 450px at 75% 50%, rgba(156, 110, 48, 0.16), transparent 60%),
+    linear-gradient(135deg, var(--bg-soft) 0%, #f3e9d2 100%);
+  padding: 7rem 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.cta-banner h2 em { color: var(--gold); }
+
+/* --- BORDURES intérieures ivoire/blanc cassé --- */
+.section-soft {
+  background: linear-gradient(180deg, var(--bg-soft) 0%, #f5ead4 100%);
+}
