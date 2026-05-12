@@ -1,19 +1,63 @@
-# HOME BY TIKA — Site web premium
+# HOME BY TIKA — Site officiel (production)
 
-Site vitrine et e-commerce de **HOME BY TIKA**, atelier ivoirien spécialisé dans le mobilier et les portes en bois massif (Iroko, Framiré, Teck).
+Atelier ivoirien spécialisé dans le **mobilier et les portes en bois massif** (Iroko, Framiré, Teck) et les **serrures haut de gamme**.
 
-- Atelier : **Songon, Cité la Grâce** — Abidjan, Côte d'Ivoire
-- WhatsApp : **+225 07 48 73 86 71**
+- **Atelier** : Songon, Cité la Grâce — Abidjan, Côte d'Ivoire
+- **WhatsApp** : +225 07 48 73 86 71
+- **Email** : contact@homebytika.ci
+
+> **Identité visuelle v3** : palette ébène / chocolat / sable premium / ivoire doux.
+> Pensée comme une marque de mobilier de luxe internationale, avec un fort ancrage artisanal africain.
 
 ---
 
-## ⚡ Mise en route en 3 étapes
+## 🏗️ Architecture & workflow
 
-| Étape | Quoi | Durée |
-|---|---|---|
-| **1** | Configurer Cloudinary (cloud des photos/vidéos) | 5 min |
-| **2** | Pousser sur GitHub | 5 min |
-| **3** | Brancher Netlify pour le déploiement automatique | 3 min |
+```
+   GitHub (code)  ─────────►  Netlify (hébergement HTTPS + déploiement auto)
+                                    ▲
+                                    │  push = redéploiement
+                                    │
+   Cloudinary (médias)  ──────►  Site live
+   (vos photos et vidéos)        (apparition automatique sans toucher au code)
+```
+
+**Workflow réel** :
+1. **Modifier un texte / un prix** → vous éditez `config.js` ou `script.js` sur GitHub → Netlify redéploie en 30 s.
+2. **Ajouter une photo ou vidéo** → upload depuis l'admin (ou directement dans Cloudinary avec le bon tag) → apparaît automatiquement sur le site, sur tous les appareils.
+
+---
+
+## 🔐 SÉCURITÉ (à lire avant publication)
+
+Ce site est conçu pour un **dépôt GitHub public** + hébergement Netlify gratuit. Les bonnes pratiques de sécurité ont été appliquées :
+
+### ✅ Ce qui est sécurisé
+
+- **Le mot de passe admin n'est jamais en clair** dans le code. Seul son **hash SHA-256** est stocké dans `config.js`. Une personne qui lit le code public ne peut pas le retrouver.
+- **Aucune clé Cloudinary secrète** dans le code. Les uploads passent par un **« unsigned upload preset »** qui ne permet QUE l'upload (pas de suppression, pas de listing privé).
+- **Le mot de passe est demandé à chaque ouverture** de l'admin (pas de session persistante de plusieurs jours).
+- **Le lien admin est masqué** sous trois points `•••` discrets dans le pied de page.
+- **HTTPS automatique** via Netlify (requis pour la géolocalisation).
+
+### ⚠️ Limites importantes
+
+Le contrôle d'accès à l'admin est **côté client** (JavaScript). Quelqu'un de très technique pourrait théoriquement contourner. Pour un usage en production sérieuse, deux niveaux de protection supplémentaires sont possibles :
+
+1. **Netlify Identity** (gratuit) — vraie authentification serveur. Activer dans Netlify → Identity → Enable.
+2. **Restreindre l'upload preset Cloudinary** — n'autoriser que certains domaines (Netlify Identity → activer la liste blanche).
+
+### 🔁 Changer le mot de passe admin
+
+1. Choisissez un nouveau mot de passe (≥ 12 caractères, lettres + chiffres + symboles).
+2. Calculez son hash SHA-256 :
+   - Online : https://emn178.github.io/online-tools/sha256.html
+   - Linux/macOS : `echo -n "MON_MDP" | sha256sum`
+   - Windows PowerShell : `Get-FileHash -InputStream ([IO.MemoryStream]::new([Text.Encoding]::UTF8.GetBytes("MON_MDP"))) -Algorithm SHA256`
+3. Dans `config.js`, remplacez la valeur de `passwordHash` par ce nouveau hash.
+4. Commit + push sur GitHub → Netlify redéploie tout seul.
+
+> ⚠️ **Important** : changez le mot de passe par défaut **avant** la première mise en ligne publique.
 
 ---
 
@@ -22,211 +66,178 @@ Site vitrine et e-commerce de **HOME BY TIKA**, atelier ivoirien spécialisé da
 | Fichier | Rôle |
 |---|---|
 | `index.html` | Page d'accueil |
-| `boutique.html` | Catalogue produits |
-| `galerie.html` | **Galerie auto-alimentée par Cloudinary (NEW)** |
+| `boutique.html` | Catalogue produits (avec filtre Serrures) |
+| `galerie.html` | Galerie auto-alimentée par Cloudinary |
 | `apropos.html` | L'atelier |
-| `contact.html` | Formulaire de contact |
-| `panier.html` | Panier de commande |
-| `localisation.html` | Carte interactive + partage de position client |
-| `admin.html` | Espace de gestion privé (mot de passe) |
-| **`config.js`** | **Configuration centrale — Cloudinary, contacts, admin** |
-| `script.js` | Logique partagée (catalogue, panier, médias, Cloudinary) |
-| `styles.css` | Design system premium |
-| `logo.svg` / `logo-mark.svg` | Logo complet + icône |
+| `contact.html` | Formulaire de contact + WhatsApp |
+| `panier.html` | Panier |
+| `localisation.html` | Carte interactive (Leaflet + OpenStreetMap) |
+| `admin.html` | Espace de gestion protégé |
+| `config.js` | **Configuration centrale** (Cloudinary, hash mot de passe, contacts) |
+| `script.js` | Logique partagée (catalogue, panier, Cloudinary, médias) |
+| `styles.css` | Design system premium (ébène / chocolat / sable) |
+| `logo.svg`, `logo-mark.svg` | Logo complet + icône (vectoriels) |
 | `images/` | Médias locaux optionnels (fallback) |
-| `.nojekyll` | Désactive Jekyll (requis GitHub Pages) |
-| `_redirects` | Règles de redirection Netlify |
+| `_redirects` | Règles URL propres (Netlify) |
+| `.nojekyll` | Désactive Jekyll (GitHub Pages compat) |
+| `.gitignore` | Exclusions Git |
+| `README.md` | Ce fichier |
 
 ---
 
-## 🌐 Étape 1 — Configurer Cloudinary (cloud des photos & vidéos)
+## ⚡ Mise en ligne en 3 étapes
 
-Cloudinary héberge vos photos et vidéos dans le cloud. **Une seule fois à configurer**, ensuite vous uploadez depuis l'admin et tout apparaît sur tous les appareils, sans toucher au code.
+### Étape 1 — Configurer Cloudinary (5 min)
 
-### A. Créer le compte (gratuit)
+Cloudinary héberge vos photos et vidéos dans le cloud. Vos uploads sont visibles sur tous les appareils sans toucher au code.
 
-1. Allez sur https://cloudinary.com → **Sign up for free**.
-2. Choisissez **Programmable Media** (plan gratuit suffit : 25 Go inclus).
-3. Confirmez votre email.
+1. Créez un compte gratuit sur https://cloudinary.com (plan **Free** : 25 Go).
+2. Dans le **Dashboard**, recopiez votre **Cloud Name** (ex. `dx7abc1de`).
+3. **Settings** ⚙️ → **Upload** → **Add upload preset** :
+   - **Signing Mode** : **Unsigned**
+   - **Preset name** : `home_by_tika`
+   - **Folder** : laissez vide
+   - **Save**
+4. **Settings** → **Security** → vérifiez que **« Resource list »** n'est PAS dans les types restreints (pour les galeries automatiques).
+5. Dans `config.js`, remplacez `'YOUR_CLOUD_NAME_HERE'` par votre Cloud Name.
 
-### B. Récupérer votre Cloud Name
+### Étape 2 — Pousser sur GitHub (5 min)
 
-1. Une fois connecté, vous arrivez sur le **Dashboard**.
-2. En haut, vous voyez **« Product Environment Credentials »**.
-3. Recopiez la valeur de **« Cloud name »** (ex. : `dx7abc1de`).
+1. Créez un compte sur https://github.com si nécessaire.
+2. **New repository** (bouton vert) → nom : `home-by-tika` → **Public** → cochez « Add README » → **Create**.
+3. **Add file → Upload files** → glissez TOUS les fichiers du ZIP → **Commit changes**.
 
-### C. Créer l'« Upload Preset » (mode unsigned)
+### Étape 3 — Brancher Netlify (3 min)
 
-1. Cliquez sur ⚙️ **Settings** (en haut à droite).
-2. Onglet **Upload** → section **Upload presets**.
-3. Cliquez **Add upload preset**.
-4. **Signing Mode** : **Unsigned**.
-5. **Preset name** : `home_by_tika` (exactement, en minuscules).
-6. Laissez le reste par défaut → **Save**.
+1. https://netlify.com → **Sign up with GitHub**.
+2. **Add new site → Import an existing project** → GitHub → choisissez `home-by-tika`.
+3. **Build settings** : tout laissé vide (site statique).
+4. **Deploy site**.
 
-### D. Activer les galeries automatiques (liste publique par tag)
+Au bout de 30 secondes, votre site est à `https://votre-site.netlify.app`.
 
-1. Toujours dans **Settings** → onglet **Security**.
-2. Section **« Restricted media types »** : assurez-vous que **« Resource list »** est **décoché** (= autorisé).
-3. Sauvegardez.
+Pour personnaliser l'URL : **Site settings → Change site name** → `home-by-tika.netlify.app`.
 
-### E. Renseigner config.js
-
-Ouvrez `config.js`, remplacez UNIQUEMENT cette ligne :
-
-```js
-cloudName: 'YOUR_CLOUD_NAME_HERE',
-```
-
-par votre vraie valeur :
-
-```js
-cloudName: 'dx7abc1de',   // ← votre Cloud name
-```
-
-Le `uploadPreset` est déjà rempli (`home_by_tika`). Si vous l'avez nommé autrement, ajustez aussi cette ligne.
-
-C'est tout. Dès que ce fichier est en ligne, le site **bascule automatiquement** sur Cloudinary :
-
-- L'admin upload directement vers le cloud
-- Les photos/vidéos sont visibles sur tous les appareils
-- La page **Galerie** alimente automatiquement les sections par tag
-- Plus besoin de toucher à GitHub pour ajouter une photo
+À partir de maintenant, **chaque push GitHub redéploie automatiquement le site sous 1 minute**.
 
 ---
 
-## 💻 Étape 2 — Pousser le code sur GitHub
+## 🎨 Espace de gestion (admin)
 
-### Si vous n'avez pas de compte GitHub
+**Accès** : cliquez sur les **•••** dans le pied de page, ou allez directement à `/admin.html`.
 
-1. https://github.com → **Sign up**.
-2. Confirmez l'email.
+**Mot de passe par défaut** : `696933MARINA` (à changer impérativement — voir section Sécurité).
 
-### Créer un dépôt et uploader les fichiers
+### Fonctionnalités
 
-1. Cliquez **« New repository »** (vert, en haut).
-2. **Repository name** : `home-by-tika` (ou autre).
-3. **Public** (requis pour Netlify gratuit).
-4. Cochez **« Add a README file »** → **Create repository**.
-5. Sur la page du dépôt, **« Add file » → « Upload files »**.
-6. **Glissez TOUS les fichiers** de l'archive ZIP (HTML, CSS, JS, SVG, dossier `images/`, `.nojekyll`, `_redirects`, `README.md`).
-7. En bas, écrivez un commentaire de commit (« mise en ligne initiale ») → **« Commit changes »**.
+**Images du site (section haute)**
+- Image atelier (carré « L'atelier » sur l'accueil et la page atelier)
+- Fond principal de la bannière d'accueil
+- Upload Cloudinary automatique → visible partout
 
----
+**Produits (section principale)**
+Pour chaque article du catalogue :
+- Photo HD (jusqu'à 1800 px de large)
+- Vidéo courte ≤ 100 Mo (lecture auto-loop sur les cartes)
+- Nom du produit
+- Catégorie
+- Essence de bois (Iroko, Framiré, Teck, Laiton…)
+- Badge optionnel (Nouveau, Sur-mesure, Sécurité, Sculpté…)
+- Description
+- Prix de vente FCFA
+- Bouton **↺** pour restaurer une valeur d'origine
 
-## 🚀 Étape 3 — Brancher Netlify (déploiement automatique GitHub → Netlify)
-
-Netlify déploie le site **à chaque commit** GitHub, automatiquement. Vous ne touchez à rien.
-
-1. https://netlify.com → **Sign up with GitHub** (gratuit).
-2. Une fois connecté, cliquez **« Add new site » → « Import an existing project »**.
-3. **GitHub** → autorisez Netlify à voir vos dépôts.
-4. Choisissez le dépôt `home-by-tika`.
-5. **Build settings** : laissez tout vide (site statique, aucune compilation).
-   - Branch : `main`
-   - Build command : (vide)
-   - Publish directory : `/`
-6. **Deploy site**.
-
-Au bout de **30 secondes**, votre site est en ligne à une URL du type :
-
-```
-https://amazing-name-12345.netlify.app
-```
-
-Pour changer ce nom : **Site settings → Change site name** → ex : `home-by-tika.netlify.app`.
-
-### À partir de maintenant
-
-Chaque fois que vous modifiez quelque chose sur GitHub (édition directe ou nouveau commit), **Netlify redéploie automatiquement** sous une minute. Vous n'avez jamais à reuploader manuellement.
+**Quand Cloudinary est configuré**, tous les uploads vont dans le cloud et sont visibles partout. Sinon, fallback automatique sur le navigateur local.
 
 ---
 
-## 🔐 Espace de gestion (admin)
+## 🏷️ Catalogue Cloudinary — dossiers & tags
 
-- **URL** : `/admin.html` ou cliquez sur les **« ••• »** dans le pied de page.
-- **Mot de passe** : défini dans `config.js` → `admin.password`.
-- **Par défaut** : `696933MARINA`. **Changez-le** dans `config.js` avant la mise en ligne.
-- **Sécurité** : mot de passe demandé à chaque ouverture (pas de session persistante).
+Cloudinary organise vos médias par **dossiers** et **tags**. Voici la convention utilisée :
 
-### Ce que l'admin permet (sans toucher au code)
+| Section | Dossier Cloudinary | Tag pour galerie auto |
+|---|---|---|
+| Photos produits | `home-by-tika/produits` | `hbt_product` |
+| Vidéos produits | `home-by-tika/videos` | `hbt_product_video` |
+| Image atelier (story) | `home-by-tika/site/atelier` | `hbt_site_atelier` |
+| Fond hero | `home-by-tika/site/hero-bg` | `hbt_site_hero` |
+| Galerie Portes | `home-by-tika/portes` | `hbt_portes` |
+| Galerie Mobilier | `home-by-tika/mobilier` | `hbt_mobilier` |
+| Galerie Atelier | `home-by-tika/atelier` | `hbt_atelier` |
+| Galerie Collections | `home-by-tika/collections` | `hbt_collections` |
+| **Galerie Serrures** | `home-by-tika/serrures` | `hbt_serrures` |
+| Galerie Vidéos | `home-by-tika/videos` | `hbt_videos` |
 
-| Section | Actions |
+Pour qu'une image apparaisse dans la **page Galerie** :
+1. Uploadez-la dans Cloudinary (n'importe où).
+2. Ajoutez-lui le tag correspondant (ex. `hbt_serrures` pour la section Serrures).
+3. Elle apparaît sur le site en 1-2 minutes (cache).
+
+---
+
+## 🎯 Sections du site
+
+### Accueil
+Hero avec logo + texte + dégradé bois, services portes/mobilier, essences (Iroko/Framiré/Teck), sélection produits, services complémentaires, engagement, CTA chocolat.
+
+### Boutique
+Filtres par catégorie incluant **Serrures & accessoires**. Cartes produits premium avec ombres bois, hover doré, badges.
+
+### Galerie
+5 onglets : Portes, Mobilier, Atelier, Collections, **Serrures**, Vidéos. Auto-alimentée par les tags Cloudinary. Lightbox au clic.
+
+### Atelier
+Histoire de la maison, méthode (sélection / séchage / façonnage), engagements. Carrés image dynamiques (Cloudinary).
+
+### Contact + WhatsApp
+Formulaire + bouton vert flottant WhatsApp sur toutes les pages.
+
+### Localisation
+Carte Leaflet, géolocalisation client → envoi position sur WhatsApp avec lien Google Maps.
+
+### Panier
+Récap, livraison offerte > 1.5M FCFA, mention Mobile Money / virement.
+
+---
+
+## 🚀 Performance
+
+- **Lazy loading** sur toutes les images via `loading="lazy"`.
+- **Cloudinary auto-format** (WebP/AVIF servis automatiquement aux navigateurs compatibles).
+- **Cloudinary auto-quality** (compression adaptative selon la connexion).
+- **Responsive widths** (Cloudinary sert la taille adaptée à l'écran).
+- **Polices Google** préchargées (`preconnect`).
+- **Scripts en fin de page** (pas de blocage du rendu).
+- **CSS sticky header** avec `backdrop-filter` (effet de verre fluide).
+
+---
+
+## 📱 Responsive
+
+Le site est testé et optimisé pour :
+- iPhone (iOS Safari)
+- Android (Chrome / Samsung Internet)
+- Tablette (iPad, Galaxy Tab)
+- Desktop (toutes résolutions ≥ 1024 px)
+
+Breakpoints : 560 px (très petit), 720 px (mobile), 900 px (tablette).
+
+---
+
+## 🆘 Dépannage
+
+| Problème | Solution |
 |---|---|
-| **Images du site** | Image atelier + fond principal hero — upload Cloudinary auto |
-| **Produits** | Photo HD + vidéo + nom + catégorie + bois + badge + description + prix |
-| **Stats** | Suivi des photos, vidéos, prix et textes modifiés |
-
-Quand Cloudinary est configuré, **tout upload va dans le cloud** et est visible partout. Sinon, fallback automatique sur le stockage local du navigateur (mode dégradé).
-
----
-
-## 🎨 Page Galerie (auto-alimentée)
-
-La page **galerie.html** liste automatiquement les médias présents dans Cloudinary par catégorie :
-
-- **Portes** — tag `hbt_portes`
-- **Mobilier** — tag `hbt_mobilier`
-- **Atelier** — tag `hbt_atelier`
-- **Collections** — tag `hbt_collections`
-- **Vidéos** — tag `hbt_videos`
-
-Pour ajouter un visuel à une galerie, depuis le tableau de bord Cloudinary :
-1. **Media Library** → ouvrez le dossier correspondant (ou créez-le).
-2. **Upload** → ajoutez votre fichier.
-3. **Ajoutez le tag** correspondant (ex. `hbt_portes`).
-4. Le fichier apparaît automatiquement sur le site sous **1-2 minutes** (cache Cloudinary).
+| Site déployé mais photos invisibles aux autres | Vérifier `cloudName` dans `config.js` |
+| Erreur upload « preset must be Unsigned » | Cloudinary → preset → Signing Mode = Unsigned |
+| Galerie vide | Tag manquant sur les images, ou Resource list restreint dans Cloudinary Security |
+| Mot de passe oublié | Changez le hash dans `config.js`, recommitez |
+| Carte de localisation ne marche pas | Le site doit être en HTTPS (Netlify le fait automatiquement) |
+| Modification GitHub non visible | Attendre 1 min, vérifier l'onglet « Deploys » de Netlify |
 
 ---
 
-## 🎨 Personnalisation rapide
+## 📜 Licence
 
-### Coordonnées
-Modifiez `config.js` → section `contact` :
-```js
-contact: {
-  whatsapp: '2250748738671',
-  phoneDisplay: '+225 07 48 73 86 71',
-  email: 'contact@homebytika.ci',
-  address: 'Songon, Cité la Grâce — Abidjan, Côte d\'Ivoire',
-  workshop: { lat: 5.3066, lng: -4.2517 }
-}
-```
-
-### Mot de passe admin
-```js
-admin: {
-  password: 'VOTRE_NOUVEAU_MOT_DE_PASSE'
-}
-```
-
-### Catalogue produits
-Le tableau `CATALOG` dans `script.js` contient tous les produits. Vous pouvez le modifier directement (nom, prix, catégorie, etc.).
-
----
-
-## 📚 Bibliothèques utilisées (CDN, aucune clé requise sauf Cloudinary)
-
-| Lib | Usage |
-|---|---|
-| Google Fonts (Playfair Display + Inter) | Typographie |
-| Leaflet 1.9.4 | Carte de localisation |
-| CartoDB Voyager | Tuiles cartographiques claires |
-| OpenStreetMap Nominatim | Géocodage inversé |
-| Cloudinary Upload Widget | Upload depuis l'admin |
-| Cloudinary Media Delivery | Hébergement et optimisation auto des médias |
-
----
-
-## 🆘 En cas de souci
-
-- **Le site est en ligne mais les photos n'apparaissent pas** : vérifiez `config.js` → `cloudName`. Sans Cloudinary configuré, seules les photos locales du navigateur sont visibles (et uniquement sur cet appareil).
-- **Erreur « upload preset must be Unsigned »** : retournez dans Cloudinary → Settings → Upload → éditez le preset → Signing Mode = **Unsigned**.
-- **La page Galerie est vide** : vérifiez que vos médias ont bien le tag correspondant dans Cloudinary, et que **Resource list** est autorisé (Settings → Security).
-- **Mot de passe oublié** : ouvrez `config.js` → ligne `password`.
-
----
-
-## Licence
-
-© 2026 HOME BY TIKA — Tous droits réservés. Site conçu sur-mesure.
+© 2026 HOME BY TIKA — Tous droits réservés.
+Conçu sur-mesure pour HOME BY TIKA — atelier ivoirien d'ébénisterie premium.

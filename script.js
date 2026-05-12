@@ -134,6 +134,16 @@ const CATALOG = [
   { id: 'ext-03', name: 'Chaise longue Sainte-Anne', cat: 'Extérieur', type: 'exterieur', price: 245000, monogram: 'S', label: '', wood: 'Teck',
     desc: 'Chaise longue inclinable en Teck massif, parfaite au bord de la piscine.' },
 
+  // ===== SERRURES & ACCESSOIRES =====
+  { id: 'ser-01', name: 'Serrure Atlas', cat: 'Serrures', type: 'serrures', price: 185000, monogram: 'A', label: 'Sécurité', wood: 'Laiton massif',
+    desc: 'Serrure 5 points en laiton massif, finition vieux bronze, compatible portes Iroko.' },
+  { id: 'ser-02', name: 'Poignée Comoé', cat: 'Serrures', type: 'serrures', price: 48000, monogram: 'C', label: '', wood: 'Laiton',
+    desc: 'Poignée de porte en laiton patiné, design contemporain, prise en main confortable.' },
+  { id: 'ser-03', name: 'Crémone Royale', cat: 'Serrures', type: 'serrures', price: 95000, monogram: 'R', label: '', wood: 'Laiton',
+    desc: 'Crémone décorative en laiton ouvragé pour portes-fenêtres et grandes ouvertures.' },
+  { id: 'ser-04', name: 'Heurtoir Akwaba', cat: 'Serrures', type: 'serrures', price: 62000, monogram: 'A', label: 'Sculpté', wood: 'Bronze',
+    desc: 'Heurtoir en bronze coulé, motifs traditionnels ivoiriens taillés main.' },
+
   // ===== PORTES =====
   { id: 'por-01', name: 'Porte Akwaba', cat: 'Portes', type: 'portes', price: 980000, monogram: 'A', label: 'Sécurisée', wood: 'Iroko',
     desc: 'Porte d\'entrée en Iroko sculpté, structure renforcée et serrurerie haute sécurité.' },
@@ -682,6 +692,54 @@ document.addEventListener('submit', (e) => {
   }
 });
 
+/* ---------- Menu hamburger mobile (injection auto sur toutes les pages) ---------- */
+function injectMobileNav() {
+  const nav = document.querySelector('.nav');
+  if (!nav || nav.dataset.mobileInjected) return;
+  nav.dataset.mobileInjected = 'true';
+
+  const navActions = nav.querySelector('.nav-actions');
+  if (!navActions) return;
+
+  // Récupère les liens depuis la nav existante
+  const navLinks = nav.querySelector('.nav-links');
+  const linksHtml = navLinks ? navLinks.innerHTML : '';
+
+  // Bouton hamburger
+  const toggle = document.createElement('button');
+  toggle.className = 'nav-toggle';
+  toggle.setAttribute('aria-label', 'Ouvrir le menu');
+  toggle.innerHTML = '<span></span>';
+  navActions.appendChild(toggle);
+
+  // Backdrop + drawer
+  const backdrop = document.createElement('div');
+  backdrop.className = 'mobile-nav-backdrop';
+  document.body.appendChild(backdrop);
+
+  const drawer = document.createElement('div');
+  drawer.className = 'mobile-nav';
+  const whatsapp = (window.HBT_CONFIG && window.HBT_CONFIG.contact && window.HBT_CONFIG.contact.whatsapp) || '2250748738671';
+  drawer.innerHTML =
+    '<button type="button" class="close" aria-label="Fermer">×</button>' +
+    '<nav>' + linksHtml.replace(/<li>(.*?)<\/li>/g, '$1') + '</nav>' +
+    '<div class="mobile-cta">' +
+    '  <a href="https://wa.me/' + whatsapp + '" target="_blank" rel="noopener">Nous contacter</a>' +
+    '</div>';
+  document.body.appendChild(drawer);
+
+  function openMenu()  { drawer.classList.add('open'); backdrop.classList.add('open'); toggle.classList.add('open'); document.body.classList.add('menu-open'); }
+  function closeMenu() { drawer.classList.remove('open'); backdrop.classList.remove('open'); toggle.classList.remove('open'); document.body.classList.remove('menu-open'); }
+
+  toggle.addEventListener('click', () => {
+    drawer.classList.contains('open') ? closeMenu() : openMenu();
+  });
+  backdrop.addEventListener('click', closeMenu);
+  drawer.querySelector('.close').addEventListener('click', closeMenu);
+  drawer.querySelectorAll('a').forEach(a => a.addEventListener('click', closeMenu));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+}
+
 /* ---------- WhatsApp floating button ---------- */
 function injectWhatsApp() {
   if (document.querySelector('.wa-float')) return;
@@ -702,6 +760,7 @@ function injectWhatsApp() {
 /* ---------- Init ---------- */
 document.addEventListener('DOMContentLoaded', async () => {
   Cart.refreshBadge();
+  injectMobileNav();
   injectWhatsApp();
 
   // Pré-charge en parallèle : cache Cloudinary + cache vidéos locales

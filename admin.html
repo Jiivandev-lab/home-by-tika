@@ -628,9 +628,10 @@
 // Pour changer le mot de passe, modifiez la valeur ci-dessous.
 // (Ne le rendez pas trop simple — évitez "1234", "admin"…)
 // ============================================================
-// Lit le mot de passe depuis config.js (centralisé)
-// Fallback historique au cas où config.js ne soit pas encore chargé
-const ADMIN_PASSWORD = (window.HBT_CONFIG && window.HBT_CONFIG.admin && window.HBT_CONFIG.admin.password) || '696933MARINA';
+// Le mot de passe n'est JAMAIS en clair dans le code.
+// On compare le hash SHA-256 du mot de passe saisi avec celui stocké dans config.js.
+const ADMIN_PASSWORD_HASH =
+  (window.HBT_CONFIG && window.HBT_CONFIG.admin && window.HBT_CONFIG.admin.passwordHash) || '';
 const AUTH_KEY = 'hbt-admin-auth';
 
 // Sécurité maximale : on supprime toute ancienne session persistante
@@ -653,18 +654,30 @@ function isAuthed() {
   // → le panneau de connexion s'affiche systématiquement.
   sessionStorage.removeItem(AUTH_KEY);
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const pwd = document.getElementById('admin-pwd').value;
-    if (pwd === ADMIN_PASSWORD) {
+    const fieldEl = document.getElementById('admin-pwd');
+
+    // Hash le mot de passe saisi et compare au hash stocké
+    let inputHash = '';
+    try {
+      inputHash = await window.HBT_sha256(pwd);
+    } catch (cryptoErr) {
+      err.textContent = 'Navigateur incompatible (cryptographie non disponible).';
+      err.classList.add('show');
+      return;
+    }
+
+    if (ADMIN_PASSWORD_HASH && inputHash === ADMIN_PASSWORD_HASH) {
       sessionStorage.setItem(AUTH_KEY, 'ok');
       err.classList.remove('show');
       gate.classList.add('hidden');
-      document.getElementById('admin-pwd').value = '';
+      fieldEl.value = '';
     } else {
       err.classList.add('show');
-      document.getElementById('admin-pwd').value = '';
-      document.getElementById('admin-pwd').focus();
+      fieldEl.value = '';
+      fieldEl.focus();
     }
   });
 })();

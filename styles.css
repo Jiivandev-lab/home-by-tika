@@ -4,16 +4,22 @@
    ========================================= */
 
 :root {
-  --bg: #f7f2e8;          /* fond ivoire chaud */
-  --bg-soft: #ece4d2;     /* sable doux pour sections alternées */
-  --bg-card: #ffffff;     /* blanc pour les cartes */
-  --ivory: #2c241a;       /* titres - café profond (rôle inversé) */
-  --ivory-dim: #5a4f42;   /* texte secondaire warm */
-  --gold: #9c6e30;        /* accent bronze riche, lisible sur clair */
-  --gold-light: #b88746;  /* accent plus clair / survol */
-  --line: #ddd0b5;        /* bordure beige chaud */
-  --text: #322a20;        /* texte courant warm */
-  --muted: #8a7d6a;       /* texte tertiaire warm gris */
+  /* Palette premium : ébène, chocolat, sable, ivoire — bois naturels */
+  --bg: #f5ede0;          /* sable premium chaleureux */
+  --bg-soft: #e8dcc2;     /* sable doux pour sections alternées */
+  --bg-card: #fdfaf3;     /* ivoire doux pour cartes */
+  --bg-dark: #1d1610;     /* ébène — header, footer, CTAs sombres */
+  --bg-darker: #14100a;   /* ébène profond pour accents */
+  --ivory: #1f1812;       /* titres - ébène velouté */
+  --ivory-dim: #4a3c2d;   /* chocolat moyen — texte secondaire */
+  --gold: #8a5a2a;        /* noyer/bronze profond — accent principal */
+  --gold-light: #b48249;  /* bronze clair — survol et badges */
+  --gold-pale: #d4a766;   /* doré tendre pour highlights */
+  --line: #d9c8a6;        /* bordure sable doré */
+  --line-dark: #3a2d20;   /* bordure sur fond ébène */
+  --text: #2a1f15;        /* corps - café profond */
+  --muted: #8a7860;       /* texte tertiaire warm */
+  --chocolat: #3d2a1a;    /* chocolat artisanal pour highlights */
   --danger: #c45b5b;
   --radius: 2px;
   --transition: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1766,3 +1772,387 @@ img.product-photo { background: none; }
 .section-soft {
   background: linear-gradient(180deg, var(--bg-soft) 0%, #f5ead4 100%);
 }
+
+/* =================================================================
+   ÉLÉVATION PREMIUM v3 — Identité luxe artisanale africaine
+   Ébène, chocolat, sable, bois naturel, ivoire doux.
+   ================================================================= */
+
+/* --- HEADER ébène premium --- */
+.site-header {
+  background: linear-gradient(180deg, rgba(29, 22, 16, 0.97) 0%, rgba(29, 22, 16, 0.94) 100%);
+  border-bottom: 1px solid rgba(212, 167, 102, 0.18);
+  box-shadow: 0 1px 0 rgba(212, 167, 102, 0.08), 0 2px 24px rgba(0, 0, 0, 0.15);
+}
+.brand-text       { color: #f5ede0; }
+.brand-text em    { color: var(--gold-pale); }
+.brand small      { color: rgba(245, 237, 224, 0.55); }
+.nav-links a      { color: rgba(245, 237, 224, 0.82); }
+.nav-links a:hover,
+.nav-links a.active { color: var(--gold-pale); }
+.nav-links a::after { background: var(--gold-pale); }
+.cart-btn {
+  border-color: rgba(212, 167, 102, 0.45);
+  color: #f5ede0;
+  background: rgba(212, 167, 102, 0.06);
+}
+.cart-btn:hover {
+  border-color: var(--gold-pale);
+  color: var(--gold-pale);
+  background: rgba(212, 167, 102, 0.12);
+}
+.cart-count {
+  background: var(--gold-pale);
+  color: var(--bg-darker);
+  font-weight: 700;
+}
+
+/* --- FOOTER ébène, miroir du header --- */
+.site-footer {
+  background: linear-gradient(180deg, var(--bg-darker) 0%, #0e0a06 100%);
+  border-top: 1px solid rgba(212, 167, 102, 0.18);
+  color: rgba(245, 237, 224, 0.75);
+}
+.site-footer h4 { color: var(--gold-pale); }
+.site-footer a  { color: rgba(245, 237, 224, 0.75); }
+.site-footer a:hover { color: var(--gold-pale); }
+.footer-bottom { color: rgba(245, 237, 224, 0.45); border-color: rgba(212, 167, 102, 0.12); }
+.footer-bottom .gestion-link { color: rgba(245, 237, 224, 0.30); }
+.footer-bottom .gestion-link:hover { color: var(--gold-pale); }
+.footer-brand p { color: rgba(245, 237, 224, 0.65); }
+
+/* --- HERO : bois naturel + dégradé chaleureux --- */
+.hero {
+  background:
+    radial-gradient(1200px 700px at 78% 22%, rgba(180, 130, 73, 0.18), transparent 60%),
+    radial-gradient(900px 600px at 8% 82%, rgba(138, 90, 42, 0.12), transparent 60%),
+    linear-gradient(180deg, var(--bg) 0%, #ebe0c4 100%);
+}
+.hero-visual {
+  background: linear-gradient(135deg, #efe2c4 0%, #d9c39b 100%);
+  border: 1px solid var(--line);
+  box-shadow: 0 30px 60px -20px rgba(61, 42, 26, 0.25),
+              0 10px 30px -10px rgba(138, 90, 42, 0.18);
+}
+.hero-visual::before {
+  background:
+    radial-gradient(circle at 30% 30%, rgba(138, 90, 42, 0.22), transparent 55%),
+    radial-gradient(circle at 70% 75%, rgba(255, 250, 240, 0.45), transparent 60%);
+}
+
+/* --- BOUTON primaire ÉBÈNE (signature luxe) --- */
+.btn-primary {
+  background: linear-gradient(180deg, var(--chocolat) 0%, var(--bg-darker) 100%);
+  border-color: var(--bg-darker);
+  color: var(--gold-pale);
+  letter-spacing: 3.2px;
+  font-weight: 700;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 14px rgba(29, 22, 16, 0.22);
+}
+.btn-primary:hover {
+  background: linear-gradient(180deg, #4d3622 0%, #211711 100%);
+  border-color: #211711;
+  color: #fff8e5;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(29, 22, 16, 0.32);
+}
+.btn-ghost {
+  border-color: var(--chocolat);
+  color: var(--chocolat);
+}
+.btn-ghost:hover {
+  border-color: var(--bg-darker);
+  color: var(--bg-darker);
+  background: rgba(61, 42, 26, 0.04);
+}
+
+/* --- CARTES PRODUITS — bordure plus chaude, ombres bois --- */
+.product-card {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 4px rgba(61, 42, 26, 0.04);
+}
+.product-card:hover {
+  border-color: var(--gold);
+  box-shadow: 0 22px 50px rgba(61, 42, 26, 0.18),
+              0 4px 12px rgba(138, 90, 42, 0.10);
+}
+.product-image {
+  background: linear-gradient(135deg, #efe2c4 0%, #dcc69e 100%);
+}
+.product-cat   { color: var(--gold); }
+.product-name  { color: var(--ivory); font-weight: 700; }
+.product-price { color: var(--chocolat); font-weight: 700; }
+.add-btn {
+  background: var(--bg-darker);
+  color: var(--gold-pale);
+  border-color: var(--bg-darker);
+  font-weight: 700;
+}
+.add-btn:hover {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #fff8e5;
+}
+.wood-tag {
+  background: rgba(255, 250, 240, 0.95);
+  color: var(--chocolat);
+  border-color: var(--chocolat);
+  font-weight: 700;
+}
+.label {
+  background: linear-gradient(135deg, var(--gold) 0%, var(--chocolat) 100%);
+  color: #fff8e5;
+  font-weight: 700;
+  letter-spacing: 2.2px;
+}
+
+/* --- SECTIONS soft = sable plus profond --- */
+.section-soft {
+  background:
+    linear-gradient(180deg, var(--bg-soft) 0%, #dfd1b0 100%);
+}
+
+/* --- ESSENCES / FEATURE cards : fond ivoire doux --- */
+.essence-card,
+.service-card {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 6px rgba(61, 42, 26, 0.04);
+}
+.essence-card:hover,
+.service-card:hover {
+  border-color: var(--gold);
+  box-shadow: 0 20px 40px rgba(61, 42, 26, 0.14);
+}
+.essence-iroko   { background-color: #5e3e1f; }
+.essence-framire { background-color: #a3743f; }
+.essence-teck    { background-color: #7c5024; }
+.essence-visual::after { color: rgba(255, 250, 240, 0.92); }
+
+/* --- CTA bannière chocolat-sable --- */
+.cta-banner {
+  background:
+    radial-gradient(1000px 500px at 75% 50%, rgba(212, 167, 102, 0.22), transparent 60%),
+    linear-gradient(135deg, var(--bg-darker) 0%, var(--chocolat) 100%);
+  border: none;
+  color: rgba(245, 237, 224, 0.92);
+}
+.cta-banner h2 { color: #fff8e5; }
+.cta-banner h2 em { color: var(--gold-pale); }
+.cta-banner p { color: rgba(245, 237, 224, 0.85); }
+.cta-banner .hero-eyebrow { color: var(--gold-pale); }
+.cta-banner .btn-primary {
+  background: var(--gold-pale);
+  border-color: var(--gold-pale);
+  color: var(--bg-darker);
+}
+.cta-banner .btn-primary:hover {
+  background: #e6bd7e;
+  border-color: #e6bd7e;
+  color: var(--bg-darker);
+}
+.cta-banner .btn-ghost {
+  border-color: rgba(245, 237, 224, 0.55);
+  color: rgba(245, 237, 224, 0.92);
+}
+.cta-banner .btn-ghost:hover {
+  border-color: #fff8e5;
+  color: #fff8e5;
+  background: rgba(245, 237, 224, 0.08);
+}
+
+/* --- NEWSLETTER bois sable --- */
+.newsletter {
+  background:
+    radial-gradient(800px 400px at 50% 100%, rgba(138, 90, 42, 0.10), transparent 60%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-soft) 100%);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+/* --- FILTRES boutique premium --- */
+.filter-btn {
+  background: var(--bg-card);
+  color: var(--ivory);
+  border: 1px solid var(--line);
+  font-weight: 600;
+}
+.filter-btn:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(212, 167, 102, 0.08);
+}
+.filter-btn.active {
+  background: var(--bg-darker);
+  border-color: var(--bg-darker);
+  color: var(--gold-pale);
+}
+
+/* --- TYPO légèrement boostée --- */
+body { font-size: 17px; }
+h2 { letter-spacing: -0.5px; }
+.hero h1 em { color: var(--chocolat); font-style: italic; }
+
+/* --- SCROLLBAR personnalisée --- */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg-soft); }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--gold) 0%, var(--chocolat) 100%);
+  border-radius: 6px;
+}
+
+/* --- Mobile : ajustements finaux --- */
+@media (max-width: 720px) {
+  body { font-size: 16px; }
+  .hero { min-height: 78vh; padding: 3rem 0; }
+  .section { padding: 4rem 0; }
+  .product-card:hover { transform: translateY(-3px); }
+  .btn { padding: 0.95rem 1.8rem; font-size: 0.8rem; letter-spacing: 2.5px; }
+  .filter-btn { padding: 0.55rem 1.1rem; font-size: 0.75rem; }
+  .footer-grid { grid-template-columns: 1fr; gap: 2rem; }
+  .nav { padding: 1rem 1.1rem; }
+}
+
+/* --- Performance : lazy-loaded images élégantes --- */
+img.product-photo, img[loading="lazy"] {
+  background-color: var(--bg-soft);
+}
+
+/* --- Animation HERO logo : flottement subtil --- */
+@keyframes hbt-float {
+  0%, 100% { transform: translate(-50%, -50%) translateY(0); }
+  50%      { transform: translate(-50%, -50%) translateY(-6px); }
+}
+.hero-logo { animation: hbt-float 6s ease-in-out infinite; }
+
+
+/* =================================================================
+   MENU HAMBURGER MOBILE — navigation premium pour iPhone/Android
+   ================================================================= */
+.nav-toggle {
+  display: none;
+  background: transparent;
+  border: 1px solid rgba(212, 167, 102, 0.45);
+  color: var(--gold-pale);
+  width: 44px;
+  height: 44px;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.25s ease;
+}
+.nav-toggle:hover { border-color: var(--gold-pale); background: rgba(212, 167, 102, 0.10); }
+.nav-toggle span {
+  display: block;
+  width: 22px;
+  height: 1.5px;
+  background: currentColor;
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.nav-toggle span::before,
+.nav-toggle span::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 22px;
+  height: 1.5px;
+  background: currentColor;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.nav-toggle span::before { top: -7px; }
+.nav-toggle span::after  { top: 7px; }
+.nav-toggle.open span { background: transparent; }
+.nav-toggle.open span::before { top: 0; transform: rotate(45deg); }
+.nav-toggle.open span::after  { top: 0; transform: rotate(-45deg); }
+
+/* Drawer mobile premium */
+.mobile-nav {
+  position: fixed;
+  top: 0; right: 0;
+  width: 88%;
+  max-width: 380px;
+  height: 100vh;
+  background: linear-gradient(180deg, var(--bg-dark) 0%, var(--bg-darker) 100%);
+  z-index: 200;
+  transform: translateX(100%);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  padding: 5rem 2.2rem 2rem;
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.3);
+}
+.mobile-nav.open { transform: translateX(0); }
+.mobile-nav .close {
+  position: absolute;
+  top: 1.4rem; right: 1.4rem;
+  background: transparent;
+  border: 1px solid rgba(212, 167, 102, 0.4);
+  color: var(--gold-pale);
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  font-size: 1.3rem;
+  cursor: pointer;
+}
+.mobile-nav .close:hover { background: rgba(212, 167, 102, 0.15); }
+.mobile-nav a {
+  display: block;
+  color: rgba(245, 237, 224, 0.88);
+  font-family: var(--serif);
+  font-size: 1.4rem;
+  font-weight: 500;
+  padding: 1rem 0;
+  border-bottom: 1px solid rgba(212, 167, 102, 0.12);
+  letter-spacing: 0.5px;
+  transition: color 0.2s ease, padding 0.25s ease;
+}
+.mobile-nav a:hover,
+.mobile-nav a.active {
+  color: var(--gold-pale);
+  padding-left: 8px;
+}
+.mobile-nav .mobile-cta {
+  margin-top: auto;
+  padding-top: 2rem;
+  text-align: center;
+}
+.mobile-nav .mobile-cta a {
+  display: inline-block;
+  padding: 0.9rem 1.8rem;
+  background: var(--gold-pale);
+  color: var(--bg-darker);
+  border: 1px solid var(--gold-pale);
+  border-radius: 2px;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--gold-pale);
+}
+.mobile-nav .mobile-cta a:hover { background: #e6bd7e; }
+
+.mobile-nav-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(20, 14, 10, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 150;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+.mobile-nav-backdrop.open { opacity: 1; pointer-events: auto; }
+
+@media (max-width: 900px) {
+  .nav-toggle { display: inline-flex; }
+  .nav-links { display: none; }
+}
+
+/* Empêche le scroll du body quand le menu est ouvert */
+body.menu-open { overflow: hidden; }
+
