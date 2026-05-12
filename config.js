@@ -24,7 +24,7 @@ window.HBT_CONFIG = {
   /* ========== CLOUDINARY ========== */
   cloudinary: {
     // ⚠ À remplacer après création du compte
-    cloudName: 'YOUR_CLOUD_NAME_HERE',
+    cloudName: 'dcj4xsp83',
 
     // Nom du « upload preset » créé dans Cloudinary (mode unsigned)
     uploadPreset: 'home_by_tika',
