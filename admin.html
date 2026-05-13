@@ -594,6 +594,7 @@
         <div class="stat"><strong id="stat-products">0</strong><small>Produits</small></div>
         <div class="stat"><strong id="stat-size">0 Ko</strong><small>Espace photos</small></div>
         <div class="actions">
+          <button class="admin-btn" onclick="testCloudinaryConnection()">Tester Cloudinary</button>
           <button class="admin-btn" id="export-all">Télécharger photos</button>
           <button class="admin-btn" id="reset-prices">Reset prix</button>
           <button class="admin-btn" id="reset-texts">Reset textes</button>
@@ -620,6 +621,7 @@
 
 <script src="https://upload-widget.cloudinary.com/global/all.js" type="text/javascript"></script>
 <script src="config.js"></script>
+<script src="i18n.js"></script>
 <script src="script.js"></script>
 <script>
 // ============================================================
@@ -907,27 +909,128 @@ function isAuthed() {
   }
 
   /* ===== Cloudinary — upload direct (unsigned preset) ===== */
+  // ⚠️  En mode unsigned, Cloudinary REFUSE ces paramètres :
+  //     overwrite, invalidate, type, eager_async, etc.
+  //     Ils doivent être configurés DANS le preset Cloudinary lui-même.
+  //
+  // Pour autoriser le REMPLACEMENT d'une photo existante :
+  // Cloudinary → Settings → Upload → home_by_tika → Edit →
+  //   • Overwrite : Yes
+  //   • Use filename or externally defined Public ID : Yes
+  //   • Unique filename : No
+  // → Save
   async function uploadToCloudinary(file, opts) {
     if (!window.Cloudinary || !Cloudinary.isConfigured()) {
-      throw new Error('Cloudinary non configuré');
+      throw new Error('Cloudinary non configuré dans config.js');
     }
+    opts = opts || {};
+
+    const cloud  = Cloudinary.cloudName();
+    const preset = Cloudinary.uploadPreset();
+    const rt     = opts.resourceType || 'image';
+    const url    = 'https://api.cloudinary.com/v1_1/' + cloud + '/' + rt + '/upload';
+
+    /* ---- DEBUG : trace complète dans la console ---- */
+    console.group('[HBT] Cloudinary upload');
+    console.log('URL appelée   :', url);
+    console.log('Cloud name    :', cloud);
+    console.log('Upload preset :', preset);
+    console.log('Resource type :', rt);
+    console.log('Fichier       :', file.name, '(' + file.type + ', ' + Math.round(file.size / 1024) + ' Ko)');
+    console.log('Folder        :', opts.folder || '(racine)');
+    console.log('Public ID     :', opts.publicId || '(auto)');
+    console.log('Tags          :', opts.tags || '—');
+
     const fd = new FormData();
     fd.append('file', file);
-    fd.append('upload_preset', Cloudinary.uploadPreset());
-    if (opts.folder)   fd.append('folder',   opts.folder);
+    fd.append('upload_preset', preset);
+    if (opts.folder)   fd.append('folder',    opts.folder);
     if (opts.publicId) fd.append('public_id', opts.publicId);
-    if (opts.tags)     fd.append('tags',     Array.isArray(opts.tags) ? opts.tags.join(',') : opts.tags);
-    fd.append('overwrite', 'true');
-    fd.append('invalidate', 'true');
-    const rt = opts.resourceType || 'image';
-    const url = 'https://api.cloudinary.com/v1_1/' + Cloudinary.cloudName() + '/' + rt + '/upload';
-    const res = await fetch(url, { method: 'POST', body: fd });
-    if (!res.ok) {
-      const t = await res.text();
-      throw new Error('Cloudinary ' + res.status + ': ' + t);
+    if (opts.tags) {
+      fd.append('tags', Array.isArray(opts.tags) ? opts.tags.join(',') : opts.tags);
     }
-    return await res.json();
+
+    let res;
+    try {
+      res = await fetch(url, { method: 'POST', body: fd });
+    } catch (netErr) {
+      console.error('Erreur réseau:', netErr);
+      console.groupEnd();
+      showCloudDebug({ url, cloud, preset, status: 'NETWORK', error: netErr.message });
+      throw new Error('Réseau : ' + netErr.message);
+    }
+
+    const txt = await res.text();
+    console.log('Status HTTP   :', res.status);
+    console.log('Réponse brute :', txt);
+    console.groupEnd();
+
+    let json = null;
+    try { json = JSON.parse(txt); } catch (e) {}
+
+    if (!res.ok) {
+      const errMsg = (json && json.error && json.error.message)
+        ? json.error.message
+        : ('HTTP ' + res.status);
+      showCloudDebug({ url, cloud, preset, status: res.status, response: txt, error: errMsg });
+      throw new Error(errMsg);
+    }
+
+    return json;
   }
+
+  /* Affiche un panneau de debug visible à l'écran en cas d'échec */
+  function showCloudDebug(info) {
+    const id = 'hbt-cloud-debug';
+    let pane = document.getElementById(id);
+    if (!pane) {
+      pane = document.createElement('div');
+      pane.id = id;
+      pane.style.cssText = 'position:fixed; right:1rem; bottom:1rem; max-width:480px; ' +
+        'background:#1f1812; color:#f5ede0; border:1px solid #c45b5b; ' +
+        'padding:1rem 1.2rem; font-family:Consolas,monospace; font-size:0.78rem; ' +
+        'line-height:1.5; z-index:99999; box-shadow:0 12px 40px rgba(0,0,0,0.35); ' +
+        'border-radius:4px; word-break:break-word;';
+      document.body.appendChild(pane);
+    }
+    pane.innerHTML =
+      '<div style="display:flex; justify-content:space-between; margin-bottom:0.6rem;">' +
+      '  <strong style="color:#ff8a8a; letter-spacing:1px;">⚠ DEBUG CLOUDINARY</strong>' +
+      '  <button onclick="this.parentNode.parentNode.remove()" style="background:none;border:none;color:#f5ede0;cursor:pointer;font-size:1.1rem;line-height:1;">×</button>' +
+      '</div>' +
+      '<div><strong>URL</strong> : ' + info.url + '</div>' +
+      '<div><strong>Cloud</strong> : ' + info.cloud + '</div>' +
+      '<div><strong>Preset</strong> : ' + info.preset + '</div>' +
+      '<div><strong>Status</strong> : ' + info.status + '</div>' +
+      '<div style="margin-top:0.5rem;"><strong>Erreur</strong> : <span style="color:#ffb0b0;">' + (info.error || '—') + '</span></div>' +
+      (info.response ? '<details style="margin-top:0.5rem;"><summary style="cursor:pointer;">Réponse Cloudinary complète</summary><pre style="white-space:pre-wrap; margin-top:0.5rem; font-size:0.7rem;">' + info.response.replace(/</g, '&lt;') + '</pre></details>' : '');
+  }
+
+  /* Bouton de TEST CONNECTION qui upload un PNG 1×1 pour vérifier */
+  async function testCloudinaryConnection() {
+    showToast('<span class="gold">⟳</span> &nbsp;Test de connexion Cloudinary…');
+    try {
+      // PNG transparent 1×1 px
+      const b64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+      const bin = atob(b64);
+      const arr = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      const file = new File([arr], 'hbt-test.png', { type: 'image/png' });
+
+      const result = await uploadToCloudinary(file, {
+        folder: 'home-by-tika/_tests',
+        publicId: 'connection-test-' + Date.now(),
+        tags: ['hbt_test'],
+        resourceType: 'image'
+      });
+      showToast('<span class="gold">✓</span> &nbsp;Cloudinary OK — URL : ' + result.secure_url);
+      console.log('[HBT] Test Cloudinary réussi:', result);
+    } catch (e) {
+      console.error('[HBT] Test Cloudinary échec:', e);
+      showToast('<span class="gold">!</span> &nbsp;Échec : ' + e.message);
+    }
+  }
+  window.testCloudinaryConnection = testCloudinaryConnection;
 
   /* Bandeau d'état Cloudinary dans le header de l'admin */
   function showCloudStatus() {

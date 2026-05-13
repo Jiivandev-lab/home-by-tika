@@ -2156,3 +2156,35 @@ img.product-photo, img[loading="lazy"] {
 /* Empêche le scroll du body quand le menu est ouvert */
 body.menu-open { overflow: hidden; }
 
+
+/* ===== Sélecteur de langue dans le header ===== */
+.lang-switch {
+  display: inline-flex;
+  gap: 0;
+  border: 1px solid rgba(212, 167, 102, 0.40);
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(20, 14, 10, 0.40);
+  margin-right: 0.8rem;
+}
+.lang-switch button {
+  background: transparent;
+  border: 0;
+  color: rgba(245, 237, 224, 0.65);
+  padding: 0.42rem 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  font-family: var(--sans);
+  transition: all 0.2s ease;
+}
+.lang-switch button:hover { color: var(--gold-pale); }
+.lang-switch button.active {
+  background: var(--gold-pale);
+  color: var(--bg-darker);
+}
+@media (max-width: 720px) {
+  .lang-switch { display: none; }
+  /* On mobile, langue accessible dans le drawer si besoin */
+}

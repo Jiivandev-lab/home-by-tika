@@ -224,6 +224,116 @@ Breakpoints : 560 px (très petit), 720 px (mobile), 900 px (tablette).
 
 ---
 
+## 🔧 Correctif important — Cloudinary upload (lire si l'admin renvoie « Échec cloud »)
+
+L'API Cloudinary **refuse en mode unsigned** les paramètres `overwrite` et `invalidate`. Ils doivent être activés DANS le preset, pas dans la requête.
+
+**Pour autoriser le remplacement d'une photo existante** :
+
+1. Cloudinary → **Settings ⚙️ → Upload → Upload presets**
+2. Cliquez sur `home_by_tika` pour l'éditer
+3. Vérifiez ces options :
+   - **Signing Mode** : Unsigned ✓
+   - **Use filename or externally defined Public ID** : Yes (ON)
+   - **Unique filename** : No (OFF — on veut des noms stables)
+   - **Overwrite** : Yes (ON) — permet de remplacer une photo
+4. **Save**
+
+Un bouton **« Tester Cloudinary »** est disponible dans l'admin (bandeau d'actions du bas) — il upload un PNG transparent 1×1 et affiche l'URL générée si tout fonctionne. En cas d'échec, un panneau de debug rouge apparaît avec la réponse exacte de Cloudinary.
+
+Pour diagnostiquer manuellement : ouvrez la console du navigateur (F12), tentez un upload, vous verrez le détail complet de la requête (URL, preset, statut HTTP, réponse JSON).
+
+---
+
+## 📦 Suivi de commande (Supabase)
+
+Le système de **suivi de commande multi-appareils** s'appuie sur Supabase (gratuit, illimité pour ce volume).
+
+### Configuration Supabase (10 min)
+
+**1. Créer le projet**
+- Allez sur https://supabase.com → **Start your project** (gratuit)
+- **New project** → nom : `home-by-tika`, choisissez une région proche (ex. Frankfurt)
+- Mot de passe DB : générez-en un fort, notez-le quelque part
+- **Create new project** → attendez 1-2 min
+
+**2. Créer la table des commandes**
+- Onglet **SQL Editor** (icône à gauche) → **New query**
+- Collez ce code :
+
+```sql
+-- Création de la table orders
+CREATE TABLE orders (
+  id            TEXT PRIMARY KEY,
+  customer_name TEXT NOT NULL,
+  phone         TEXT NOT NULL,
+  address       TEXT DEFAULT '',
+  items         JSONB DEFAULT '[]'::jsonb,
+  total         INTEGER DEFAULT 0,
+  status        TEXT DEFAULT 'received',
+  notes         TEXT DEFAULT '',
+  history       JSONB DEFAULT '[]'::jsonb,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Active la sécurité au niveau ligne
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+
+-- Tout le monde peut LIRE (les clients consultent leur commande par ID)
+CREATE POLICY "Public read orders"
+  ON orders FOR SELECT TO anon USING (true);
+
+-- Tout le monde peut INSÉRER (création de commande depuis le site)
+CREATE POLICY "Public insert orders"
+  ON orders FOR INSERT TO anon WITH CHECK (true);
+
+-- Tout le monde peut METTRE À JOUR
+-- (prototype : protection par mot de passe admin côté client)
+-- Pour la production : utiliser Supabase Auth pour limiter aux admins authentifiés.
+CREATE POLICY "Public update orders"
+  ON orders FOR UPDATE TO anon USING (true);
+```
+
+- Cliquez **Run** → vérifiez « Success »
+
+**3. Récupérer les clés**
+- Onglet **Project Settings ⚙️ → API**
+- Recopiez :
+  - **Project URL** : `https://abc123xyz.supabase.co`
+  - **anon public** key (la longue, commence par `eyJ…`)
+
+**4. Renseigner dans `config.js`**
+
+```js
+supabase: {
+  url:    'https://abc123xyz.supabase.co',
+  anonKey: 'eyJhbGciOiJI…'   // toute la longue clé
+}
+```
+
+Commit + push → Netlify redéploie → le suivi de commande est actif.
+
+### Comment ça marche
+
+**Client passe une commande** → un identifiant est généré (ex. `HBT-2605-AB12`) → la commande est créée dans Supabase → le client reçoit son numéro et peut le suivre depuis n'importe quel appareil sur `/suivi.html` ou en partageant `/suivi.html?id=HBT-2605-AB12`.
+
+**Admin met à jour le statut** → section « Commandes » dans `admin.html` → menu déroulant → le client voit la mise à jour en temps réel sur sa page de suivi.
+
+**7 statuts disponibles** : Commande reçue → Confirmée → Fabrication en cours → Finition → Produit prêt → Livraison en cours → Livré (ou Annulé).
+
+### Sécurité Supabase
+
+L'**anon key est publique par design** — pas une fuite. La sécurité passe par les Row Level Security (RLS) policies qu'on a configurées. Pour une vraie sécurité production, activez Supabase Auth + restreignez les UPDATE aux utilisateurs authentifiés (`auth.role() = 'authenticated'`).
+
+---
+
+## 🌍 Multilingue (FR / EN / ES)
+
+Un sélecteur **FR | EN | ES** apparaît dans le header. Le choix de langue est mémorisé entre visites. Les textes traduisibles utilisent `data-i18n="cle"` (voir `i18n.js`). Pour ajouter une traduction, éditez `i18n.js` directement.
+
+---
+
 ## 🆘 Dépannage
 
 | Problème | Solution |

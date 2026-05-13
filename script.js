@@ -156,6 +156,211 @@ const CATALOG = [
 ];
 
 const CART_KEY = 'home-by-tika-cart';
+const ORDERS_KEY = 'home-by-tika-orders';
+
+/* ============================================================
+   SUPABASE — Suivi commandes multi-appareils
+   Tombe en arrière sur localStorage si non configuré.
+   ============================================================ */
+const Supa = {
+  ready() {
+    return window.HBT_CONFIG && window.HBT_CONFIG.isSupabaseReady && window.HBT_CONFIG.isSupabaseReady();
+  },
+  url() { return window.HBT_CONFIG.supabase.url.replace(/\/$/, ''); },
+  key() { return window.HBT_CONFIG.supabase.anonKey; },
+  headers(extra) {
+    return Object.assign({
+      'apikey': this.key(),
+      'Authorization': 'Bearer ' + this.key(),
+      'Content-Type': 'application/json'
+    }, extra || {});
+  },
+  async select(query) {
+    const res = await fetch(this.url() + '/rest/v1/' + query, {
+      headers: this.headers(),
+      cache: 'no-store'
+    });
+    if (!res.ok) throw new Error('Supabase ' + res.status + ': ' + await res.text());
+    return res.json();
+  },
+  async insert(table, row) {
+    const res = await fetch(this.url() + '/rest/v1/' + table, {
+      method: 'POST',
+      headers: this.headers({ 'Prefer': 'return=representation' }),
+      body: JSON.stringify(row)
+    });
+    if (!res.ok) throw new Error('Supabase ' + res.status + ': ' + await res.text());
+    return res.json();
+  },
+  async update(table, match, changes) {
+    const res = await fetch(this.url() + '/rest/v1/' + table + '?' + match, {
+      method: 'PATCH',
+      headers: this.headers({ 'Prefer': 'return=representation' }),
+      body: JSON.stringify(changes)
+    });
+    if (!res.ok) throw new Error('Supabase ' + res.status + ': ' + await res.text());
+    return res.json();
+  }
+};
+
+const OrderService = {
+  async create(orderData) {
+    const id = orderData.id || generateOrderId();
+    const order = {
+      id: id,
+      customer_name: orderData.customer_name,
+      phone: orderData.phone,
+      address: orderData.address || '',
+      items: orderData.items || [],
+      total: orderData.total || 0,
+      status: 'received',
+      notes: orderData.notes || '',
+      history: [{ status: 'received', at: new Date().toISOString(), note: '' }]
+    };
+
+    if (Supa.ready()) {
+      try {
+        const rows = await Supa.insert('orders', order);
+        return rows[0] || order;
+      } catch (e) {
+        console.error('[Supabase] insert failed, fallback local:', e);
+      }
+    }
+    // Fallback local
+    order.created_at = new Date().toISOString();
+    Orders.set(order);
+    return order;
+  },
+
+  async getById(id) {
+    if (!id) return null;
+    if (Supa.ready()) {
+      try {
+        const rows = await Supa.select('orders?id=eq.' + encodeURIComponent(id) + '&select=*');
+        if (rows && rows[0]) return rows[0];
+      } catch (e) { console.error('[Supabase] getById:', e); }
+    }
+    return Orders.get(id);
+  },
+
+  async list() {
+    if (Supa.ready()) {
+      try {
+        const rows = await Supa.select('orders?select=*&order=created_at.desc');
+        return rows || [];
+      } catch (e) { console.error('[Supabase] list:', e); }
+    }
+    return Orders.list();
+  },
+
+  async updateStatus(id, newStatus, note) {
+    const cur = await this.getById(id);
+    if (!cur) return null;
+    const history = Array.isArray(cur.history) ? cur.history.slice() : [];
+    history.push({ status: newStatus, at: new Date().toISOString(), note: note || '' });
+
+    const changes = { status: newStatus, history: history, updated_at: new Date().toISOString() };
+
+    if (Supa.ready()) {
+      try {
+        const rows = await Supa.update('orders', 'id=eq.' + encodeURIComponent(id), changes);
+        return rows[0] || null;
+      } catch (e) { console.error('[Supabase] updateStatus:', e); }
+    }
+    return Orders.updateStatus(id, newStatus, note);
+  },
+
+  async updateNotes(id, notes) {
+    const changes = { notes: notes, updated_at: new Date().toISOString() };
+    if (Supa.ready()) {
+      try {
+        const rows = await Supa.update('orders', 'id=eq.' + encodeURIComponent(id), changes);
+        return rows[0] || null;
+      } catch (e) { console.error('[Supabase] updateNotes:', e); }
+    }
+    const cur = Orders.get(id);
+    if (cur) { cur.notes = notes; Orders.set(cur); return cur; }
+    return null;
+  }
+};
+window.OrderService = OrderService;
+
+/* ============================================================
+   COMMANDES — Statuts, store et helpers
+   ============================================================ */
+const ORDER_STATUSES = [
+  { key: 'received',   label: 'Commande reçue',        roman: 'I',   color: '#8a7860' },
+  { key: 'confirmed',  label: 'Commande confirmée',    roman: 'II',  color: '#8a5a2a' },
+  { key: 'preparing',  label: 'Préparation en cours',  roman: 'III', color: '#b48249' },
+  { key: 'ready',      label: 'Produit prêt',          roman: 'IV',  color: '#b48249' },
+  { key: 'shipping',   label: 'En cours de livraison', roman: 'V',   color: '#d4a766' },
+  { key: 'delivered',  label: 'Livré',                 roman: 'VI',  color: '#2e8a56' },
+  { key: 'cancelled',  label: 'Annulé',                roman: '✕',   color: '#c45b5b' }
+];
+
+function orderStatusInfo(key) {
+  return ORDER_STATUSES.find(s => s.key === key) || ORDER_STATUSES[0];
+}
+
+const Orders = {
+  read() {
+    try { return JSON.parse(localStorage.getItem(ORDERS_KEY)) || {}; }
+    catch (e) { return {}; }
+  },
+  write(map) { localStorage.setItem(ORDERS_KEY, JSON.stringify(map)); },
+  get(id) { return this.read()[id] || null; },
+  list() {
+    const map = this.read();
+    return Object.values(map).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  },
+  set(order) {
+    const map = this.read();
+    map[order.id] = order;
+    this.write(map);
+  },
+  remove(id) {
+    const map = this.read();
+    delete map[id];
+    this.write(map);
+  },
+  updateStatus(id, newStatus, note) {
+    const map = this.read();
+    const o = map[id];
+    if (!o) return null;
+    o.status = newStatus;
+    o.history = o.history || [];
+    o.history.push({
+      status: newStatus,
+      at: Date.now(),
+      note: note || ''
+    });
+    o.updatedAt = Date.now();
+    this.write(map);
+    return o;
+  },
+  count() { return Object.keys(this.read()).length; }
+};
+
+/* Génère un identifiant de commande lisible : HBT-AAMM-XXXX */
+function generateOrderId() {
+  const d = new Date();
+  const yy = String(d.getFullYear()).slice(-2);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return 'HBT-' + yy + mm + '-' + rand;
+}
+
+/* Formate une date pour affichage */
+function fmtDate(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  return d.toLocaleString('fr-FR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+}
+
+
 const PHOTOS_KEY = 'home-by-tika-photos';
 const PRICES_KEY = 'home-by-tika-prices';
 const FREE_SHIPPING_THRESHOLD = 1500000; // FCFA

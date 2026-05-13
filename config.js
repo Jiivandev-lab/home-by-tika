@@ -63,6 +63,20 @@ window.HBT_CONFIG = {
     workshop: { lat: 5.3066, lng: -4.2517 }
   },
 
+  /* ========== SUPABASE (suivi des commandes) ==========
+     L'anon key Supabase est publique par design — pas une fuite.
+     La sécurité passe par les Row Level Security policies en SQL.
+
+     POUR ACTIVER :
+     1. Créez un compte gratuit sur https://supabase.com
+     2. Nouveau projet → recopiez Project URL et anon key ci-dessous
+     3. SQL Editor → exécutez le script CREATE TABLE du README
+  ===================================================== */
+  supabase: {
+    url:    'YOUR_SUPABASE_URL_HERE',          // ex. https://abc123.supabase.co
+    anonKey: 'YOUR_SUPABASE_ANON_KEY_HERE'     // clé anonyme publique
+  },
+
   /* ========== ADMINISTRATION ==========
      Hash SHA-256 du mot de passe — le mot de passe lui-même
      n'est JAMAIS écrit ici.
@@ -88,6 +102,13 @@ window.HBT_CONFIG = {
 window.HBT_CONFIG.isCloudinaryReady = function () {
   const c = window.HBT_CONFIG.cloudinary;
   return c.cloudName && c.cloudName !== 'YOUR_CLOUD_NAME_HERE' && c.uploadPreset;
+};
+
+window.HBT_CONFIG.isSupabaseReady = function () {
+  const s = window.HBT_CONFIG.supabase;
+  return s && s.url && s.anonKey &&
+         s.url !== 'YOUR_SUPABASE_URL_HERE' &&
+         s.anonKey !== 'YOUR_SUPABASE_ANON_KEY_HERE';
 };
 
 window.CLOUDINARY_CONFIG = window.HBT_CONFIG.cloudinary;
