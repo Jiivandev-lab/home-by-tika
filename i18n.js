@@ -23,6 +23,7 @@ window.HBT_I18N = {
 
     /* HERO */
     'hero.eyebrow':  'Atelier ivoirien d\'ébénisterie',
+    'hero.title':    'Le bois massif, l\'âme de votre maison.',
     'hero.title1':   'Le bois ',
     'hero.title2':   'massif',
     'hero.title3':   ', l\'âme de votre maison.',
@@ -89,6 +90,7 @@ window.HBT_I18N = {
     'nav.cart':      'Cart',
 
     'hero.eyebrow':  'Ivorian cabinetmaking atelier',
+    'hero.title':    'Solid wood, the soul of your home.',
     'hero.title1':   'Solid ',
     'hero.title2':   'wood',
     'hero.title3':   ', the soul of your home.',
@@ -150,6 +152,7 @@ window.HBT_I18N = {
     'nav.cart':      'Cesta',
 
     'hero.eyebrow':  'Taller marfileño de ebanistería',
+    'hero.title':    'La madera maciza, el alma de tu hogar.',
     'hero.title1':   'La madera ',
     'hero.title2':   'maciza',
     'hero.title3':   ', el alma de tu hogar.',

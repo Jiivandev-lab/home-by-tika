@@ -2188,3 +2188,64 @@ body.menu-open { overflow: hidden; }
   .lang-switch { display: none; }
   /* On mobile, langue accessible dans le drawer si besoin */
 }
+
+/* =================================================================
+   HEADER v4 — Bouton Panier premium ébène + espacement lang/cart
+   ================================================================= */
+.lang-switch { margin-right: 1.4rem !important; }
+
+.cart-btn {
+  background: linear-gradient(180deg, #4a3624 0%, #1d1610 100%) !important;
+  border: 1px solid var(--gold) !important;
+  color: var(--gold-pale) !important;
+  font-weight: 600 !important;
+  font-size: 0.78rem !important;
+  letter-spacing: 2.6px !important;
+  padding: 0.7rem 1.35rem !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35) !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25),
+              inset 0 1px 0 rgba(212, 167, 102, 0.15) !important;
+  border-radius: 4px !important;
+  text-transform: uppercase;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.cart-btn:hover {
+  background: linear-gradient(180deg, #5e4630 0%, #2a1f15 100%) !important;
+  border-color: var(--gold-pale) !important;
+  color: #fff8e5 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.30),
+              inset 0 1px 0 rgba(212, 167, 102, 0.25) !important;
+}
+.cart-btn .cart-count {
+  background: var(--gold-pale) !important;
+  color: var(--bg-darker) !important;
+  font-weight: 800 !important;
+  border-radius: 999px !important;
+  padding: 2px 8px !important;
+  margin-left: 0.5rem;
+  min-width: 22px;
+  display: inline-block;
+  text-align: center;
+  text-shadow: none;
+  font-size: 0.72rem;
+}
+
+@media (max-width: 720px) {
+  .cart-btn {
+    padding: 0.55rem 0.9rem !important;
+    font-size: 0.7rem !important;
+    letter-spacing: 1.8px !important;
+  }
+  .lang-switch { margin-right: 0.6rem !important; }
+}
+
+/* Sélecteur de langue visible sur mobile aussi */
+@media (max-width: 720px) {
+  .lang-switch { display: inline-flex !important; margin-right: 0.5rem !important; }
+  .lang-switch button {
+    padding: 0.35rem 0.5rem !important;
+    font-size: 0.65rem !important;
+    letter-spacing: 1px !important;
+  }
+}
