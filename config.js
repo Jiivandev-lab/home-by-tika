@@ -165,17 +165,108 @@ window.Cloudinary = (function () {
       return buildUrl(cfg().folders.site + '/' + name,
                       Object.assign({ crop: 'fill', gravity: 'auto' }, opts));
     },
+    /* =====================================================
+       listByTag — Lecture publique Cloudinary par tag
+       URL exacte appelée :
+         https://res.cloudinary.com/<CLOUD>/<image|video>/list/<TAG>.json
+       Pour que ça fonctionne, Cloudinary → Settings → Security →
+       décocher « Resource list » dans « Restricted media types ».
+       ===================================================== */
     async listByTag(tag, type) {
-      if (!isOK() || !tag) return [];
-      type = type || 'image';
+      if (!isOK()) {
+        console.warn('[Cloudinary.listByTag] Cloudinary non configuré dans config.js');
+        return [];
+      }
+      if (!tag) {
+        console.warn('[Cloudinary.listByTag] Tag manquant');
+        return [];
+      }
+      type = (type || 'image').toLowerCase();
+      const cloud = cfg().cloudName;
+      const url = 'https://res.cloudinary.com/' + cloud +
+                  '/' + type + '/list/' + tag + '.json';
+
+      console.group('[Cloudinary.listByTag]');
+      console.log('Cloud name    :', cloud);
+      console.log('Tag demandé   :', tag);
+      console.log('Resource type :', type);
+      console.log('URL appelée   :', url);
+
+      let res;
       try {
-        const url = 'https://res.cloudinary.com/' + cfg().cloudName +
-                    '/' + type + '/list/' + tag + '.json';
-        const res = await fetch(url, { cache: 'no-store' });
-        if (!res.ok) return [];
-        const data = await res.json();
-        return data.resources || [];
-      } catch (e) { return []; }
+        res = await fetch(url, { cache: 'no-store', mode: 'cors' });
+      } catch (netErr) {
+        console.error('Erreur réseau / CORS :', netErr);
+        console.warn('Si vous voyez "Failed to fetch" → vérifiez votre connexion ou la console Network.');
+        console.groupEnd();
+        return [];
+      }
+
+      console.log('Status HTTP   :', res.status, res.statusText);
+
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        console.error('Réponse brute :', txt.slice(0, 400));
+
+        if (res.status === 401 || res.status === 403) {
+          console.warn(
+            '⚠ HTTP ' + res.status + ' → "Resource list" est RESTREINT dans Cloudinary.\n' +
+            'Solution :\n' +
+            '  1. Allez sur https://console.cloudinary.com\n' +
+            '  2. Settings (engrenage) → Security\n' +
+            '  3. Section "Restricted media types" → retirez/décochez "Resource list"\n' +
+            '  4. Cochez "Image" (et "Video" pour les galeries vidéo) dans "Resource list allowed" si présent\n' +
+            '  5. Save → Patientez 1 min puis rechargez le site.'
+          );
+        } else if (res.status === 404) {
+          console.warn(
+            '⚠ HTTP 404 → Aucun média indexé pour ce tag.\n' +
+            '  • Vérifiez l\'orthographe exacte du tag : "' + tag + '"\n' +
+            '  • Les tags sont sensibles à la casse : "hbt_tables" ≠ "HBT_TABLES" ≠ "hbt_Tables"\n' +
+            '  • Cloudinary indexe les tags dans les ~30 secondes après l\'upload.'
+          );
+        }
+
+        console.groupEnd();
+        return [];
+      }
+
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        console.error('Réponse non-JSON :', parseErr);
+        console.groupEnd();
+        return [];
+      }
+
+      console.log('Réponse JSON  :', data);
+
+      // L'API publique renvoie { resources: [...] } — robuste à différents shapes
+      let resources = [];
+      if (Array.isArray(data)) {
+        resources = data;
+      } else if (data && Array.isArray(data.resources)) {
+        resources = data.resources;
+      } else if (data && data.resource_type) {
+        resources = [data];
+      }
+
+      console.log('Médias trouvés :', resources.length);
+      if (resources.length > 0) {
+        console.log('Premier média :', resources[0]);
+        console.log('Exemples public_id :', resources.slice(0, 5).map(r => r.public_id));
+      } else {
+        console.warn(
+          'Aucun média retourné. Vérifications :\n' +
+          '  • Le tag "' + tag + '" existe-t-il bien sur des médias dans Cloudinary ?\n' +
+          '  • Le delivery type est-il "upload" (et pas "private" / "authenticated") ?\n' +
+          '  • Attendez 30-60 s après upload — Cloudinary indexe les tags avec un léger délai.'
+        );
+      }
+
+      console.groupEnd();
+      return resources;
     }
   };
 })();
