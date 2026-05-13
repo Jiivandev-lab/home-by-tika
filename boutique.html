@@ -25,8 +25,7 @@
       <li><a href="suivi.html" data-i18n="nav.tracking">Suivi commande</a></li>
     </ul>
     <div class="nav-actions">
-      <a href="panier.html" class="cart-btn">
-        Panier <span class="cart-count" id="cart-count">0</span>
+      <a href="panier.html" class="cart-btn"><span data-i18n="nav.cart">Panier</span> <span class="cart-count" id="cart-count">0</span>
       </a>
     </div>
   </nav>
@@ -120,5 +119,144 @@
 <script src="config.js"></script>
 <script src="i18n.js"></script>
 <script src="script.js"></script>
+
+<!-- ====================================================================
+     BOUTIQUE — Chargement dynamique depuis Cloudinary (filtre par tag)
+     Chaque bouton catégorie déclenche un fetch des médias avec le tag
+     correspondant. Aucune modification du code requise pour ajouter
+     du contenu : il suffit d'uploader dans Cloudinary avec le bon tag.
+     ==================================================================== -->
+<script>
+(function () {
+  // Mapping clé du bouton (data-filter) → tag(s) Cloudinary
+  const FILTER_TAGS = {
+    all:       ['hbt_salons','hbt_tables','hbt_chaises','hbt_lits',
+                'hbt_armoires','hbt_cuisines','hbt_meublestv','hbt_bureaux',
+                'hbt_exterieur','hbt_portes','hbt_serrures'],
+    salons:    ['hbt_salons'],
+    tables:    ['hbt_tables'],
+    chaises:   ['hbt_chaises'],
+    lits:      ['hbt_lits'],
+    armoires:  ['hbt_armoires'],
+    cuisines:  ['hbt_cuisines'],
+    meublestv: ['hbt_meublestv'],
+    bureaux:   ['hbt_bureaux'],
+    exterieur: ['hbt_exterieur'],
+    portes:    ['hbt_portes'],
+    serrures:  ['hbt_serrures']
+  };
+
+  const CATEGORY_LABELS = {
+    salons: 'Salons', tables: 'Tables', chaises: 'Chaises', lits: 'Lits',
+    armoires: 'Armoires', cuisines: 'Cuisines', meublestv: 'Meubles TV',
+    bureaux: 'Bureaux', exterieur: 'Extérieur', portes: 'Portes',
+    serrures: 'Serrures'
+  };
+
+  const grid = document.getElementById('shop-grid');
+  if (!grid) return;
+
+  // Si Cloudinary n'est pas configuré, on garde le rendu statique de script.js
+  if (!(window.Cloudinary && Cloudinary.isConfigured())) {
+    console.warn('[Boutique] Cloudinary non configuré — affichage du catalogue statique conservé.');
+    return;
+  }
+
+  async function fetchTag(tag) {
+    try {
+      const list = await Cloudinary.listByTag(tag, 'image');
+      console.log('[Boutique] Tag', tag, '→', list.length, 'média(s) trouvé(s)');
+      return list.map(r => Object.assign({ _tag: tag }, r));
+    } catch (e) {
+      console.error('[Boutique] Erreur fetch tag', tag, e);
+      return [];
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function cardHTML(r) {
+    const url    = Cloudinary.url(r.public_id, { width: 900, crop: 'fill', gravity: 'auto' });
+    const ctx    = (r.context && r.context.custom) || {};
+    const name   = escapeHtml(ctx.name  || r.public_id.split('/').pop().replace(/[-_]+/g, ' '));
+    const desc   = escapeHtml(ctx.alt   || '');
+    const price  = escapeHtml(ctx.price || '');
+    const key    = (r._tag || '').replace('hbt_', '');
+    const cat    = escapeHtml(CATEGORY_LABELS[key] || key);
+
+    return ''
+      + '<article class="product-card" data-type="' + key + '">'
+      +   '<div class="product-image has-photo">'
+      +     '<img src="' + url + '" alt="' + name + '" class="product-photo" loading="lazy" decoding="async">'
+      +     (cat ? '<span class="wood-tag">' + cat + '</span>' : '')
+      +   '</div>'
+      +   '<div class="product-body">'
+      +     '<span class="product-cat">' + cat + '</span>'
+      +     '<h3 class="product-name">' + name + '</h3>'
+      +     (desc ? '<p class="product-desc">' + desc + '</p>' : '')
+      +     '<div class="product-foot">'
+      +       (price ? '<span class="product-price">' + price + '</span>' : '<span></span>')
+      +       '<a href="contact.html" class="add-btn">Devis</a>'
+      +     '</div>'
+      +   '</div>'
+      + '</article>';
+  }
+
+  async function showFilter(key) {
+    console.group('[Boutique] Filtre déclenché');
+    console.log('Catégorie sélectionnée :', key);
+    const tags = FILTER_TAGS[key] || [];
+    console.log('Tags recherchés :', tags);
+
+    grid.innerHTML =
+      '<div style="grid-column:1/-1; text-align:center; padding:2.5rem; color:var(--muted); letter-spacing:1px;">Chargement…</div>';
+
+    const lists  = await Promise.all(tags.map(fetchTag));
+    const all    = [].concat.apply([], lists);
+
+    // Dédoublonnage (un média peut porter plusieurs tags)
+    const seen   = new Set();
+    const unique = all.filter(r => {
+      if (seen.has(r.public_id)) return false;
+      seen.add(r.public_id); return true;
+    });
+
+    console.log('Total médias affichés (uniques) :', unique.length);
+    console.groupEnd();
+
+    if (unique.length === 0) {
+      grid.innerHTML =
+        '<div class="empty-state" style="grid-column:1/-1; text-align:center; padding:4rem 2rem; background:var(--bg-soft); border:1px dashed var(--line); border-radius:4px;">'
+        + '<h3 style="margin-bottom:0.7rem;">Aucun produit disponible dans cette catégorie.</h3>'
+        + '<p style="color:var(--muted); font-size:0.95rem;">Les médias apparaîtront ici automatiquement dès qu\'ils seront uploadés dans Cloudinary avec le tag correspondant.</p>'
+        + '</div>';
+      return;
+    }
+
+    grid.innerHTML = unique.map(cardHTML).join('');
+  }
+
+  // Intercepte les clics sur les boutons filtre (override du comportement statique)
+  document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.filter-btn');
+    if (!btn) return;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    showFilter(btn.dataset.filter);
+  });
+
+  // Lancement initial — passe après le rendu statique de script.js
+  function init() { showFilter('all'); }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    setTimeout(init, 0);
+  }
+})();
+</script>
 </body>
 </html>
