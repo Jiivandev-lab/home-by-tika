@@ -5,18 +5,18 @@
    Injecte deux nouvelles sections au DOM une fois le gate auth passé :
      1. Nouveau produit  — workflow Shopify-like (upload + auto slug/tags)
      2. Commandes        — liste/recherche/filtre + update statut
- 
+
    Branchements :
      • ProductService (script.js) → Supabase products (fallback local)
      • OrderService   (script.js) → Supabase orders   (fallback local)
      • Cloudinary uploader        → preset unsigned (config.js)
- 
+
    Activation : <script src="admin-extras.js"></script> dans admin.html
    ===================================================================== */
- 
+
 (function () {
   'use strict';
- 
+
   /* ===== Attente du gate admin (sessionStorage 'hbt-admin-auth' = ok) ===== */
   function waitForAuth(cb, tries) {
     tries = tries || 0;
@@ -26,7 +26,7 @@
       setTimeout(() => waitForAuth(cb, tries + 1), 500);
     }
   }
- 
+
   function ready(fn) {
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', fn);
@@ -34,7 +34,7 @@
       fn();
     }
   }
- 
+
   /* ===== Helpers ===== */
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) { return Array.from((root || document).querySelectorAll(sel)); }
@@ -76,7 +76,7 @@
       t.style.transform = 'translateY(80px)'; t.style.opacity = '0';
     }, 3500);
   }
- 
+
   /* ===== CSS additif ===== */
   function injectCSS() {
     const css = `
@@ -260,7 +260,7 @@
       }
       .hbt-product-mini button:hover { border-color: var(--gold, #c89968); }
       .hbt-product-mini button.danger:hover { border-color: #c45b5b; color: #c45b5b; }
- 
+
       /* Mobile / tablette */
       @media (max-width: 720px) {
         .hbt-form { grid-template-columns: 1fr; }
@@ -290,7 +290,7 @@
     style.textContent = css;
     document.head.appendChild(style);
   }
- 
+
   /* ============================================================
      SECTION 1 — NOUVEAU PRODUIT (workflow Shopify-like)
      ============================================================ */
@@ -311,12 +311,12 @@
     { value: 'collections', label: 'Galerie : Collections' },
     { value: 'videos',    label: 'Galerie : Vidéos' }
   ];
- 
+
   function newProductHTML() {
     return `
       <h2>Ajouter un nouveau produit</h2>
       <p class="lede">Remplissez les champs, uploadez l'image — le slug, le public_id, les tags et le dossier Cloudinary sont générés automatiquement. Publication instantanée sur le site.</p>
- 
+
       <form id="hbt-new-product-form" class="hbt-form">
         <div>
           <label>Nom du produit *</label>
@@ -371,7 +371,7 @@
           <button type="submit" class="hbt-btn-primary" id="np-submit" disabled>Publier le produit</button>
         </div>
       </form>
- 
+
       <h2 style="margin-top:2.4rem;">Produits ajoutés depuis l'admin</h2>
       <p class="lede">Liste des produits gérés via Supabase (en plus des 23 produits historiques du catalogue).</p>
       <div class="hbt-products-list" id="hbt-products-list">
@@ -379,7 +379,7 @@
       </div>
     `;
   }
- 
+
   function wireNewProduct() {
     const form = $('#hbt-new-product-form');
     const nameI = $('#np-name');
@@ -393,7 +393,7 @@
     const fileI = $('#np-file');
     const submitBtn = $('#np-submit');
     const dbg   = (key) => $('[data-debug="' + key + '"]', $('#np-debug'));
- 
+
     const SECTION_MAP = {
       portes:      'boutique (Portes) + galerie (Portes)',
       serrures:    'boutique (Serrures & accessoires)',
@@ -411,10 +411,10 @@
       collections: 'galerie (Collections)',
       videos:      'galerie (Vidéos)'
     };
- 
+
     let pendingFile = null;
     let pendingPreview = null;
- 
+
     /* Met à jour le panneau debug en live */
     function updateDebug() {
       const name = nameI.value.trim();
@@ -437,7 +437,7 @@
     }
     nameI.addEventListener('input', updateDebug);
     catI.addEventListener('change', updateDebug);
- 
+
     /* Gestion upload zone */
     zone.addEventListener('click', () => fileI.click());
     zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.style.borderColor = 'var(--gold,#c89968)'; });
@@ -450,7 +450,7 @@
     fileI.addEventListener('change', (e) => {
       if (e.target.files[0]) handleFile(e.target.files[0]);
     });
- 
+
     function handleFile(file) {
       if (!file.type.startsWith('image/')) {
         toast('⚠ Fichier non image', '#c45b5b'); return;
@@ -467,7 +467,7 @@
       };
       reader.readAsDataURL(file);
     }
- 
+
     /* Soumission du formulaire — upload Cloudinary + insert Supabase */
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -475,20 +475,20 @@
       const name = nameI.value.trim();
       const cat  = catI.value;
       if (!name) { toast('⚠ Le nom est requis', '#c45b5b'); return; }
- 
+
       submitBtn.disabled = true;
       submitBtn.textContent = 'Publication…';
- 
+
       try {
         const meta = window.HBT_generateProductMeta(name, cat);
- 
+
         // 1) UPLOAD CLOUDINARY (preset unsigned)
         const cloudName = window.HBT_CONFIG.cloudinary.cloudName;
         const preset    = window.HBT_CONFIG.cloudinary.uploadPreset;
         if (!cloudName || cloudName === 'YOUR_CLOUD_NAME_HERE') {
           throw new Error('Cloudinary non configuré (cloudName)');
         }
- 
+
         const fd = new FormData();
         fd.append('file', pendingFile);
         fd.append('upload_preset', preset);
@@ -503,19 +503,19 @@
           woodI.value  ? ('wood=' + woodI.value) : ''
         ].filter(Boolean).join('|');
         if (ctx) fd.append('context', ctx);
- 
+
         const upUrl = 'https://api.cloudinary.com/v1_1/' + cloudName + '/image/upload';
         const upRes = await fetch(upUrl, { method: 'POST', body: fd });
         const upData = await upRes.json();
         if (!upRes.ok || !upData.secure_url) {
           throw new Error('Cloudinary upload failed: ' + (upData.error ? upData.error.message : upRes.status));
         }
- 
+
         dbg('url').innerHTML = '<a href="' + upData.secure_url + '" target="_blank" style="color:var(--gold);word-break:break-all;">' + upData.secure_url + '</a>';
         console.group('[HBT new product] Upload OK');
         console.log('Cloudinary response :', upData);
         console.groupEnd();
- 
+
         // 2) SUPABASE INSERT (ou localStorage si non configuré)
         const product = await window.ProductService.create({
           name: name,
@@ -529,7 +529,7 @@
           cloudinary_url: upData.secure_url,
           tags: meta.tags
         });
- 
+
         toast('✓ Produit publié : <strong>' + escapeHtml(product.name) + '</strong>', '#2e8a56');
         form.reset();
         pendingFile = null; pendingPreview = null;
@@ -546,11 +546,11 @@
         submitBtn.textContent = 'Publier le produit';
       }
     });
- 
+
     updateDebug();
     refreshProductsList();
   }
- 
+
   async function refreshProductsList() {
     const list = $('#hbt-products-list');
     if (!list) return;
@@ -577,7 +577,7 @@
             </div>
           </div>`;
       }).join('');
- 
+
       // Wire actions
       list.querySelectorAll('[data-action="delete"]').forEach(btn => {
         btn.addEventListener('click', async () => {
@@ -610,37 +610,66 @@
       list.innerHTML = '<p style="grid-column:1/-1;color:#c45b5b;">Erreur de chargement : ' + escapeHtml(e.message) + '</p>';
     }
   }
- 
+
   /* ============================================================
-     SECTION 2 — COMMANDES (liste / recherche / update statut)
+     SECTION 2 — GESTION DES COMMANDES
+     (liste Supabase + recherche + filtre + update statut inline)
      ============================================================ */
+  // 6 statuts demandés par HOME BY TIKA. La compatibilité avec les
+  // statuts historiques (finishing, shipping) est gérée par fallback.
   const ORDER_STATUSES_ADMIN = [
     { key: 'received',   label: 'Reçue',          color: '#8a7860' },
     { key: 'confirmed',  label: 'Confirmée',      color: '#8a5a2a' },
-    { key: 'preparing',  label: 'Fabrication',    color: '#b48249' },
-    { key: 'finishing',  label: 'Finition',       color: '#b48249' },
-    { key: 'ready',      label: 'Prête',          color: '#b48249' },
-    { key: 'shipping',   label: 'Livraison',      color: '#d4a766' },
-    { key: 'delivered',  label: 'Livré',          color: '#2e8a56' },
-    { key: 'cancelled',  label: 'Annulé',         color: '#c45b5b' }
+    { key: 'preparing',  label: 'En fabrication', color: '#b48249' },
+    { key: 'ready',      label: 'Prête',          color: '#d4a766' },
+    { key: 'delivered',  label: 'Livrée',         color: '#2e8a56' },
+    { key: 'cancelled',  label: 'Annulée',        color: '#c45b5b' }
   ];
- 
+
+  // Anciennes valeurs encore possibles dans la DB → labels lisibles
+  const LEGACY_STATUS_LABELS = {
+    finishing: 'Finition',
+    shipping:  'En livraison'
+  };
+
+  function statusInfo(key) {
+    return ORDER_STATUSES_ADMIN.find(s => s.key === key) ||
+           { key: key, label: LEGACY_STATUS_LABELS[key] || key, color: '#8a7860' };
+  }
+
+  /* Résumé court des articles d'une commande (pour cellule table) */
+  function itemsBrief(items) {
+    if (!Array.isArray(items) || items.length === 0) return '<span style="color:var(--muted);">—</span>';
+    const total = items.reduce((n, it) => n + (it.qty || 1), 0);
+    const firstNames = items.slice(0, 2).map(it => escapeHtml(it.name || it.id)).join(', ');
+    const more = items.length > 2 ? ' +' + (items.length - 2) : '';
+    return `<span title="${items.length} ligne(s)">${total} art. — ${firstNames}${more}</span>`;
+  }
+
+  /* Adresse tronquée (cellule table) */
+  function addressBrief(addr) {
+    if (!addr) return '<span style="color:var(--muted);">—</span>';
+    const txt = String(addr);
+    if (txt.length <= 38) return escapeHtml(txt);
+    return '<span title="' + escapeHtml(txt) + '">' + escapeHtml(txt.slice(0, 36)) + '…</span>';
+  }
+
   function ordersHTML() {
     return `
-      <h2>Commandes</h2>
-      <p class="lede">Liste et suivi de fabrication des commandes clients (Supabase). Filtre + recherche + update statut en temps réel.</p>
- 
+      <h2>Gestion des commandes</h2>
+      <p class="lede">Toutes les commandes Supabase, suivi de fabrication, mise à jour de statut. Sauvegarde instantanée dans la base.</p>
+
       <div class="hbt-orders-controls">
-        <input type="text" id="ord-search" placeholder="Rechercher : numéro, nom, téléphone…">
+        <input type="text" id="ord-search" placeholder="Rechercher : numéro, nom, téléphone, adresse…">
         <select id="ord-filter-status">
           <option value="">Tous statuts</option>
           ${ORDER_STATUSES_ADMIN.map(s => `<option value="${s.key}">${s.label}</option>`).join('')}
         </select>
         <button type="button" class="hbt-btn-primary" id="ord-refresh" style="padding:0.6rem 1.2rem;font-size:0.75rem;">Rafraîchir</button>
       </div>
- 
+
       <div id="ord-status-line" style="font-size:0.85rem;color:var(--muted);margin-bottom:0.8rem;"></div>
- 
+
       <div style="overflow-x:auto;">
         <table class="hbt-orders-table" id="ord-table">
           <thead>
@@ -649,27 +678,29 @@
               <th>Date</th>
               <th>Client</th>
               <th>Téléphone</th>
+              <th>Adresse</th>
+              <th>Articles</th>
               <th>Total</th>
               <th>Statut</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr><td colspan="7" style="text-align:center;color:var(--muted);">Chargement…</td></tr>
+            <tr><td colspan="9" style="text-align:center;color:var(--muted);padding:1.4rem;">Chargement…</td></tr>
           </tbody>
         </table>
       </div>
     `;
   }
- 
+
   let allOrders = [];
- 
+
   async function loadOrders() {
     const tbody = $('#ord-table tbody');
     const line  = $('#ord-status-line');
     if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);">Chargement…</td></tr>';
- 
+
     try {
       allOrders = await window.OrderService.list();
       if (line) {
@@ -687,71 +718,103 @@
       tbody.innerHTML = '<tr><td colspan="7" style="color:#c45b5b;">Erreur : ' + escapeHtml(e.message) + '</td></tr>';
     }
   }
- 
+
   function renderOrders() {
     const tbody = $('#ord-table tbody');
     if (!tbody) return;
     const q = ($('#ord-search').value || '').trim().toLowerCase();
-    const status = $('#ord-filter-status').value;
- 
+    const statusFilter = $('#ord-filter-status').value;
+
     const filtered = allOrders.filter(o => {
-      if (status && o.status !== status) return false;
+      if (statusFilter && o.status !== statusFilter) return false;
       if (q) {
-        const blob = [o.id, o.customer_name, o.phone, o.address || ''].join(' ').toLowerCase();
+        // Recherche large : ID, nom, téléphone, adresse, notes
+        const blob = [
+          o.id, o.customer_name, o.phone, o.address, o.notes
+        ].filter(Boolean).join(' ').toLowerCase();
         if (blob.indexOf(q) === -1) return false;
       }
       return true;
     });
- 
+
     if (filtered.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:1.8rem;">Aucune commande</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:1.8rem;">Aucune commande ne correspond aux critères.</td></tr>';
       return;
     }
- 
+
     tbody.innerHTML = filtered.map(o => {
-      const status = ORDER_STATUSES_ADMIN.find(s => s.key === o.status) || ORDER_STATUSES_ADMIN[0];
+      const st = statusInfo(o.status);
+      // Si le statut actuel n'est pas dans la liste des 6 (ex: "finishing" / "shipping"
+      // hérités), on l'ajoute en tête du select pour ne pas perdre l'information.
+      const inMain = ORDER_STATUSES_ADMIN.some(s => s.key === o.status);
+      const optionsList = (inMain ? '' :
+        '<option value="' + escapeHtml(o.status) + '" selected>' + escapeHtml(st.label) + ' (ancien)</option>'
+      ) + ORDER_STATUSES_ADMIN.map(s =>
+        '<option value="' + s.key + '"' + (s.key === o.status ? ' selected' : '') + '>' + s.label + '</option>'
+      ).join('');
+
       return `
         <tr data-id="${escapeHtml(o.id)}">
           <td data-label="N°"><span class="hbt-order-id-cell">${escapeHtml(o.id)}</span></td>
           <td data-label="Date">${fmt(o.created_at)}</td>
           <td data-label="Client">${escapeHtml(o.customer_name || '—')}</td>
           <td data-label="Téléphone">${escapeHtml(o.phone || '—')}</td>
+          <td data-label="Adresse">${addressBrief(o.address)}</td>
+          <td data-label="Articles">${itemsBrief(o.items)}</td>
           <td data-label="Total">${o.total ? fcfa(o.total) : '—'}</td>
           <td data-label="Statut">
-            <select class="status-select" data-action="status" style="border-color:${status.color};">
-              ${ORDER_STATUSES_ADMIN.map(s =>
-                '<option value="' + s.key + '"' + (s.key === o.status ? ' selected' : '') + '>' + s.label + '</option>'
-              ).join('')}
+            <select class="status-select" data-action="status"
+                    style="border-color:${st.color};color:${st.color};font-weight:600;">
+              ${optionsList}
             </select>
           </td>
           <td data-label="Actions">
-            <button type="button" data-action="view" class="hbt-btn-primary" style="padding:0.4rem 0.8rem;font-size:0.7rem;">Détails</button>
+            <button type="button" data-action="view" class="hbt-btn-primary"
+                    style="padding:0.4rem 0.8rem;font-size:0.7rem;">Détails</button>
           </td>
         </tr>`;
     }).join('');
   }
- 
+
   function wireOrders() {
     $('#ord-search').addEventListener('input', () => renderOrders());
     $('#ord-filter-status').addEventListener('change', () => renderOrders());
     $('#ord-refresh').addEventListener('click', () => loadOrders());
- 
-    // Délégation : update statut + détails
+
+    // Délégation : update statut (sauvegarde Supabase instantanée)
     $('#ord-table tbody').addEventListener('change', async (e) => {
       if (e.target.matches('[data-action="status"]')) {
-        const id = e.target.closest('tr').dataset.id;
-        const newStatus = e.target.value;
+        const select = e.target;
+        const id = select.closest('tr').dataset.id;
+        const newStatus = select.value;
+        const prevStatus = (allOrders.find(x => x.id === id) || {}).status;
+
+        // Indicateur visuel pendant la sauvegarde
+        select.disabled = true;
+        select.style.opacity = '0.55';
+
         try {
           await window.OrderService.updateStatus(id, newStatus, '');
-          toast('✓ Statut mis à jour : ' + escapeHtml(id) + ' → ' + newStatus, '#2e8a56');
-          // Update local
+          // Met à jour la couleur du select + l'objet local
+          const st = statusInfo(newStatus);
+          select.style.borderColor = st.color;
+          select.style.color = st.color;
           const o = allOrders.find(x => x.id === id);
           if (o) o.status = newStatus;
+          toast('✓ ' + escapeHtml(id) + ' → <strong>' + escapeHtml(st.label) + '</strong>', '#2e8a56');
         } catch (err) {
-          toast('❌ Erreur : ' + escapeHtml(err.message), '#c45b5b');
+          console.error('[Commandes] updateStatus échec :', err);
+          toast('❌ Sauvegarde échouée : ' + escapeHtml(err.message), '#c45b5b');
+          // Revient au statut précédent en cas d'erreur
+          if (prevStatus) select.value = prevStatus;
+        } finally {
+          select.disabled = false;
+          select.style.opacity = '1';
         }
       }
     });
+
+    // Délégation : ouvre la modal détails
     $('#ord-table tbody').addEventListener('click', async (e) => {
       if (e.target.matches('[data-action="view"]')) {
         const id = e.target.closest('tr').dataset.id;
@@ -760,7 +823,7 @@
       }
     });
   }
- 
+
   function showOrderDetails(o) {
     // Petit modal léger
     const itemsHTML = (o.items || []).length
@@ -769,7 +832,7 @@
     const historyHTML = (o.history || []).map(h =>
       '<li>' + fmt(h.at) + ' — <strong>' + escapeHtml(h.status) + '</strong>' + (h.note ? ' — ' + escapeHtml(h.note) : '') + '</li>'
     ).join('');
- 
+
     const modal = document.createElement('div');
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99998;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px);';
     modal.innerHTML = `
@@ -804,7 +867,7 @@
     $('#ord-modal-close', modal).addEventListener('click', () => modal.remove());
     modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
   }
- 
+
   /* ============================================================
      INJECTION DOM avec système d'onglets
      ============================================================ */
@@ -817,24 +880,24 @@
     }
     const beforeNode = Array.from(main.querySelectorAll('h2'))
       .find(h => h.textContent.trim() === 'Produits');
- 
+
     const wrap = document.createElement('div');
     wrap.id = 'hbt-extras-wrap';
     wrap.className = 'hbt-extras-section';
     wrap.innerHTML = `
       <div class="hbt-extras-tabs">
-        <button type="button" class="hbt-extras-tab active" data-tab="new-product">+ Nouveau produit</button>
-        <button type="button" class="hbt-extras-tab" data-tab="orders">Commandes</button>
+        <button type="button" class="hbt-extras-tab active" data-tab="orders">Gestion des commandes</button>
+        <button type="button" class="hbt-extras-tab" data-tab="new-product">+ Nouveau produit</button>
       </div>
       <div id="hbt-extras-content"></div>
     `;
- 
+
     if (beforeNode) {
       beforeNode.parentNode.insertBefore(wrap, beforeNode);
     } else {
       main.insertBefore(wrap, main.firstChild);
     }
- 
+
     // Tab switching
     $$('.hbt-extras-tab', wrap).forEach(btn => {
       btn.addEventListener('click', () => {
@@ -843,11 +906,12 @@
         showTab(btn.dataset.tab);
       });
     });
- 
-    showTab('new-product');
-    console.log('[admin-extras] Sections "Nouveau produit" et "Commandes" injectées');
+
+    // Onglet par défaut : Gestion des commandes (priorité business)
+    showTab('orders');
+    console.log('[admin-extras] Sections "Gestion des commandes" + "Nouveau produit" injectées');
   }
- 
+
   function showTab(tab) {
     const content = $('#hbt-extras-content');
     if (!content) return;
@@ -860,7 +924,7 @@
       loadOrders();
     }
   }
- 
+
   /* ===== BOOT ===== */
   ready(() => {
     injectCSS();
@@ -870,4 +934,3 @@
     });
   });
 })();
- 
