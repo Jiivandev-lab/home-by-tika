@@ -40,10 +40,10 @@ window.HBT_MEDIA = {
 
   /* ============ GALERIE ============ */
   portes: [
-    // Exemple : { id: 'porte-akwaba', name: 'Porte Akwaba', price: '980 000 FCFA', wood: 'Iroko' }
-  ],
-  mobilier: [
-    // Exemple : { id: 'salon-baoule', name: 'Salon Baoulé', wood: 'Iroko' }
+    { 
+  id: 'por-04',
+  name: 'Porte Moderne'
+    },
   ],
   atelier: [
     // Exemple : { id: 'atelier-vue-1', name: 'Vue d\'atelier' }
