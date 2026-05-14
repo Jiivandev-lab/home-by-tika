@@ -1,0 +1,19 @@
+# =====================================================================
+# Configuration Netlify — HOME BY TIKA
+# =====================================================================
+
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+# Redirige /api/* vers /.netlify/functions/* (URLs propres)
+[[redirects]]
+  from = "/api/*"
+  to   = "/.netlify/functions/:splat"
+  status = 200
+  force = true
+
+# Variables d'environnement requises (à renseigner dans Netlify UI) :
+#   CLOUDINARY_CLOUD_NAME
+#   CLOUDINARY_API_KEY
+#   CLOUDINARY_API_SECRET

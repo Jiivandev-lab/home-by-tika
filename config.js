@@ -166,102 +166,78 @@ window.Cloudinary = (function () {
                       Object.assign({ crop: 'fill', gravity: 'auto' }, opts));
     },
     /* =====================================================
-       listByTag — Lecture publique Cloudinary par tag
-       URL exacte appelée :
-         https://res.cloudinary.com/<CLOUD>/<image|video>/list/<TAG>.json
-       Pour que ça fonctionne, Cloudinary → Settings → Security →
-       décocher « Resource list » dans « Restricted media types ».
+       listByTag — Lecture Cloudinary via Netlify Function
+       ---------------------------------------------------------
+       Appelle /api/cloudinary-assets?tag=XXX&type=image
+       (la Netlify Function utilise l'Admin API Cloudinary
+       côté serveur — API key + secret en variables d'env).
+       Plus fiable que l'ancienne méthode /image/list/<tag>.json.
        ===================================================== */
     async listByTag(tag, type) {
-      if (!isOK()) {
-        console.warn('[Cloudinary.listByTag] Cloudinary non configuré dans config.js');
-        return [];
-      }
       if (!tag) {
         console.warn('[Cloudinary.listByTag] Tag manquant');
         return [];
       }
       type = (type || 'image').toLowerCase();
-      const cloud = cfg().cloudName;
-      const url = 'https://res.cloudinary.com/' + cloud +
-                  '/' + type + '/list/' + tag + '.json';
 
-      console.group('[Cloudinary.listByTag]');
-      console.log('Cloud name    :', cloud);
+      // Appelle la Netlify Function (qui utilise l'Admin API côté serveur)
+      const url = '/api/cloudinary-assets?tag=' + encodeURIComponent(tag) +
+                  '&type=' + encodeURIComponent(type);
+
+      console.group('[Cloudinary.listByTag] via Netlify Function');
       console.log('Tag demandé   :', tag);
       console.log('Resource type :', type);
       console.log('URL appelée   :', url);
 
       let res;
       try {
-        res = await fetch(url, { cache: 'no-store', mode: 'cors' });
+        res = await fetch(url, { cache: 'no-store' });
       } catch (netErr) {
-        console.error('Erreur réseau / CORS :', netErr);
-        console.warn('Si vous voyez "Failed to fetch" → vérifiez votre connexion ou la console Network.');
+        console.error('Erreur réseau :', netErr);
+        console.warn(
+          'Si "Failed to fetch" en local : la function ne tourne pas sans Netlify.\n' +
+          'Solutions :\n' +
+          '  • Testez sur l\'URL Netlify déployée (https://votre-site.netlify.app)\n' +
+          '  • Ou lancez "netlify dev" localement.'
+        );
         console.groupEnd();
         return [];
       }
 
       console.log('Status HTTP   :', res.status, res.statusText);
 
-      if (!res.ok) {
+      let data;
+      try { data = await res.json(); }
+      catch (e) {
         const txt = await res.text().catch(() => '');
-        console.error('Réponse brute :', txt.slice(0, 400));
+        console.error('Réponse non-JSON :', txt.slice(0, 500));
+        console.groupEnd();
+        return [];
+      }
 
-        if (res.status === 401 || res.status === 403) {
+      if (!res.ok) {
+        console.error('Erreur API :', data);
+        if (data && data.missing) {
           console.warn(
-            '⚠ HTTP ' + res.status + ' → "Resource list" est RESTREINT dans Cloudinary.\n' +
-            'Solution :\n' +
-            '  1. Allez sur https://console.cloudinary.com\n' +
-            '  2. Settings (engrenage) → Security\n' +
-            '  3. Section "Restricted media types" → retirez/décochez "Resource list"\n' +
-            '  4. Cochez "Image" (et "Video" pour les galeries vidéo) dans "Resource list allowed" si présent\n' +
-            '  5. Save → Patientez 1 min puis rechargez le site.'
-          );
-        } else if (res.status === 404) {
-          console.warn(
-            '⚠ HTTP 404 → Aucun média indexé pour ce tag.\n' +
-            '  • Vérifiez l\'orthographe exacte du tag : "' + tag + '"\n' +
-            '  • Les tags sont sensibles à la casse : "hbt_tables" ≠ "HBT_TABLES" ≠ "hbt_Tables"\n' +
-            '  • Cloudinary indexe les tags dans les ~30 secondes après l\'upload.'
+            '⚠ Variables d\'environnement manquantes sur Netlify.\n' +
+            'Solution : Netlify → Site settings → Environment variables\n' +
+            'Ajoutez : CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET\n' +
+            'Puis redéployez (Deploys → Trigger deploy → Clear cache and deploy site).'
           );
         }
-
         console.groupEnd();
         return [];
       }
 
-      let data;
-      try {
-        data = await res.json();
-      } catch (parseErr) {
-        console.error('Réponse non-JSON :', parseErr);
-        console.groupEnd();
-        return [];
-      }
-
-      console.log('Réponse JSON  :', data);
-
-      // L'API publique renvoie { resources: [...] } — robuste à différents shapes
-      let resources = [];
-      if (Array.isArray(data)) {
-        resources = data;
-      } else if (data && Array.isArray(data.resources)) {
-        resources = data.resources;
-      } else if (data && data.resource_type) {
-        resources = [data];
-      }
-
-      console.log('Médias trouvés :', resources.length);
+      const resources = (data && Array.isArray(data.resources)) ? data.resources : [];
+      console.log('Médias reçus  :', resources.length);
       if (resources.length > 0) {
-        console.log('Premier média :', resources[0]);
         console.log('Exemples public_id :', resources.slice(0, 5).map(r => r.public_id));
       } else {
         console.warn(
-          'Aucun média retourné. Vérifications :\n' +
-          '  • Le tag "' + tag + '" existe-t-il bien sur des médias dans Cloudinary ?\n' +
-          '  • Le delivery type est-il "upload" (et pas "private" / "authenticated") ?\n' +
-          '  • Attendez 30-60 s après upload — Cloudinary indexe les tags avec un léger délai.'
+          'Aucun média retourné pour le tag "' + tag + '".\n' +
+          '  • Vérifiez l\'orthographe exacte du tag dans Cloudinary Media Library\n' +
+          '  • Patientez ~30s après un nouvel upload (indexation Cloudinary)'
         );
       }
 

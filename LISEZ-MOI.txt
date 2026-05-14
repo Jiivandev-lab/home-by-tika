@@ -1,0 +1,40 @@
+HOME BY TIKA — Dossier des photos
+=================================
+
+Deux méthodes pour ajouter vos photos produits :
+
+1. METHODE FACILE — La page d'administration
+   ---------------------------------------------
+   Ouvrez « admin.html » dans votre navigateur.
+   Glissez-déposez vos photos sur chaque produit (ou cliquez pour
+   les sélectionner). Les photos sont automatiquement redimensionnées,
+   compressées et enregistrées. Elles apparaissent immédiatement
+   sur le site (accueil, boutique, panier).
+
+   Bouton « Télécharger tout » : sauvegarde toutes vos photos
+   sur votre ordinateur, avec le bon nom de fichier (ex: por-01.jpg).
+
+2. METHODE AVANCÉE — Le dossier "images"
+   ---------------------------------------
+   Si vous voulez que les photos soient permanentes (visibles
+   sur tous les navigateurs et appareils), placez-les dans ce
+   dossier avec le bon nom de fichier.
+
+   Liste des IDs produits :
+   - Salons       : sal-01, sal-02
+   - Tables       : tab-01, tab-02
+   - Chaises      : chs-01, chs-02
+   - Lits         : lit-01
+   - Armoires     : arm-01, arm-02
+   - Cuisines     : cui-01
+   - Meubles TV   : mtv-01
+   - Bureaux      : bur-01
+   - Extérieur    : ext-01, ext-02, ext-03
+   - Portes       : por-01, por-02, por-03, por-04
+
+   Formats : JPG, PNG ou WEBP.
+   Taille recommandée : 1000 à 1600 px de large.
+
+Astuce : la méthode 1 est largement la plus simple. La méthode 2
+sert uniquement si vous publiez le site sur internet et voulez
+que les photos soient visibles pour tous les visiteurs.

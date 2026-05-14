@@ -2249,3 +2249,152 @@ body.menu-open { overflow: hidden; }
     letter-spacing: 1px !important;
   }
 }
+
+/* =================================================================
+   PLACEHOLDERS — Quand une image Cloudinary est manquante
+   ================================================================= */
+.product-image.placeholder,
+.gallery-item.placeholder {
+  background:
+    linear-gradient(135deg, var(--bg-soft) 0%, var(--line) 100%),
+    repeating-linear-gradient(90deg, rgba(156,110,48,0.08) 0px, rgba(156,110,48,0.08) 1px, transparent 1px, transparent 4px);
+  position: relative;
+}
+.product-image.placeholder::after,
+.gallery-item.placeholder::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M 22 88 L 22 50 Q 22 18 50 8 Q 78 18 78 50 L 78 88" fill="none" stroke="%23c89968" stroke-width="2" stroke-linejoin="round"/><rect x="40" y="40" width="20" height="48" fill="%23c89968" opacity="0.5"/></svg>');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 40% 40%;
+  opacity: 0.5;
+}
+
+/* =================================================================
+   RESPONSIVE — Garantir aucune déformation sur mobile/tablette/desktop
+   ================================================================= */
+
+/* Images & vidéos : jamais de déformation */
+img, video {
+  max-width: 100%;
+  height: auto;
+}
+.product-photo, .product-video,
+.gallery-item img, .gallery-item video,
+.story-image.has-image,
+.hero.has-bg-image {
+  /* Garde object-fit cover pour ces zones dimensionnées par CSS */
+  object-fit: cover;
+  object-position: center;
+}
+
+/* Containers : jamais de débordement */
+.container, .nav, .hero-grid, .product-grid, .gallery-grid,
+.essences-grid, .services-grid, .features, .pillars,
+.complement-list, .map-grid, .contact-grid, .story {
+  max-width: 100%;
+}
+
+/* MOBILE (≤ 600 px) — iPhone & Android */
+@media (max-width: 600px) {
+  body { font-size: 15.5px; line-height: 1.62; }
+
+  /* Hero : pile vertical, image plus compacte */
+  .hero { min-height: auto; padding: 3rem 0 2rem; }
+  .hero-grid { grid-template-columns: 1fr; gap: 2.5rem; }
+  .hero h1 { font-size: clamp(2rem, 8vw, 2.6rem); line-height: 1.12; }
+  .hero-lede { font-size: 1rem; }
+  .hero-visual { aspect-ratio: 1.2 / 1; }
+  .hero-logo { max-width: 220px; width: 60%; }
+
+  /* Sections : moins de padding */
+  .section { padding: 3rem 0; }
+  .section-head { margin-bottom: 2rem; }
+  .section-head p { font-size: 0.98rem; }
+
+  /* Grilles : 1 colonne sur mobile */
+  .product-grid, .gallery-grid { grid-template-columns: 1fr; gap: 1.2rem; }
+  .essences-grid, .features, .pillars, .services-grid { grid-template-columns: 1fr; gap: 1.4rem; }
+  .footer-grid { grid-template-columns: 1fr; gap: 2rem; }
+  .map-grid, .contact-grid, .story { grid-template-columns: 1fr; gap: 2rem; }
+
+  /* Boutons : taille touch confortable (44px min) */
+  .btn { padding: 0.95rem 1.6rem; font-size: 0.78rem; min-height: 44px; }
+  .filter-btn, .gallery-tab { padding: 0.55rem 1rem; font-size: 0.72rem; min-height: 38px; }
+  .add-btn { padding: 0.55rem 1rem; min-height: 38px; }
+
+  /* Cartes produits : padding interne réduit */
+  .product-body { padding: 1.2rem 1rem; }
+  .product-name { font-size: 1.1rem; }
+  .product-price { font-size: 1.1rem; }
+  .product-desc { font-size: 0.88rem; }
+
+  /* Header : compact */
+  .nav { padding: 0.9rem 1rem; }
+  .brand-icon { width: 36px; height: 36px; }
+  .brand-text { font-size: 0.95rem; letter-spacing: 1.8px; }
+  .brand small { font-size: 0.48rem; letter-spacing: 1.8px; }
+
+  /* Filtres boutique en scroll horizontal sur mobile */
+  .filters {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    padding-bottom: 0.6rem;
+    margin-left: -2rem;
+    margin-right: -2rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
+    -webkit-overflow-scrolling: touch;
+  }
+  .filter-btn { white-space: nowrap; flex-shrink: 0; }
+
+  /* Pied de page contact en pile */
+  .footer-bottom { flex-direction: column; gap: 0.8rem; text-align: center; }
+  .footer-bottom span { font-size: 0.78rem; }
+
+  /* Lightbox : padding réduit */
+  .lightbox { padding: 1rem; }
+
+  /* Carte localisation : hauteur réduite */
+  #map { height: 380px; }
+
+  /* Formulaires : champs plus grands sur mobile */
+  input, textarea, select {
+    font-size: 16px; /* évite le zoom automatique iOS */
+    padding: 0.85rem 1rem;
+  }
+}
+
+/* TABLETTE (601 – 900 px) */
+@media (min-width: 601px) and (max-width: 900px) {
+  .hero-grid { grid-template-columns: 1fr; gap: 3rem; }
+  .product-grid, .gallery-grid { grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+  .essences-grid, .features { grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+  .footer-grid { grid-template-columns: repeat(2, 1fr); }
+  .section { padding: 4.5rem 0; }
+  .services-grid { grid-template-columns: 1fr; }
+  .map-grid, .contact-grid, .story { grid-template-columns: 1fr; }
+}
+
+/* DESKTOP (≥ 901 px) — comportement par défaut conservé */
+
+/* GRAND ÉCRAN (≥ 1600 px) — légère mise à l'échelle */
+@media (min-width: 1600px) {
+  .container { max-width: 1400px; }
+  body { font-size: 17.5px; }
+  h1 { font-size: clamp(3.5rem, 4.5vw, 5.2rem); }
+  .product-grid { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+}
+
+/* Évite tout débordement horizontal accidentel */
+html, body { overflow-x: hidden; max-width: 100vw; }
+
+/* Tableaux et long contenus : scroll si trop large */
+table, pre, code {
+  max-width: 100%;
+  overflow-x: auto;
+  word-break: break-word;
+}
