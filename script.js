@@ -2,7 +2,7 @@
    HOME BY TIKA — JS partagé
    Mobilier & portes en bois massif — Côte d'Ivoire
    ========================================= */
-
+ 
 /* ============================================================
    CLOUDINARY — Hébergement cloud des photos & vidéos
    ----------------------------------------------------------
@@ -51,21 +51,21 @@ const CLD = {
     } catch (e) { return []; }
   }
 };
-
+ 
 /* URL Cloudinary conventionnelle pour la photo principale d'un produit */
 function cloudinaryProductImage(id, w) {
   if (!CLD.isReady() || !id) return null;
   const folder = window.HBT_CONFIG.cloudinary.folders.produits;
   return CLD.url(folder + '/' + id, { w: w || 1200, crop: 'fill' });
 }
-
+ 
 /* URL Cloudinary pour la vidéo principale d'un produit */
 function cloudinaryProductVideo(id, w) {
   if (!CLD.isReady() || !id) return null;
   const folder = window.HBT_CONFIG.cloudinary.folders.videos;
   return CLD.videoUrl(folder + '/' + id, { w: w || 1200 });
 }
-
+ 
 /* Gestion globale d'erreur d'image : remplace par le monogramme */
 window.HBT_imageError = function(imgEl, monogram) {
   try {
@@ -82,8 +82,8 @@ window.HBT_imageError = function(imgEl, monogram) {
     }
   } catch (e) {}
 };
-
-
+ 
+ 
 // Catalogue (source de vérité unique)
 const CATALOG = [
   // ===== SALONS =====
@@ -91,41 +91,41 @@ const CATALOG = [
     desc: 'Salon d\'angle 5 places en Iroko massif, structure sculptée à la main et coussins en coton naturel.' },
   { id: 'sal-02', name: 'Salon Akan', cat: 'Salons', type: 'salons', price: 1380000, monogram: 'A', label: '', wood: 'Framiré',
     desc: 'Canapé 3 places en Framiré, lignes modernes, finition huilée claire.' },
-
+ 
   // ===== TABLES =====
   { id: 'tab-01', name: 'Table Comoé', cat: 'Tables', type: 'tables', price: 690000, monogram: 'C', label: 'Nouveau', wood: 'Iroko',
     desc: 'Table à manger 8 places en Iroko massif, plateau épais d\'un seul tenant, pieds sculptés.' },
   { id: 'tab-02', name: 'Table basse Sassandra', cat: 'Tables', type: 'tables', price: 285000, monogram: 'S', label: '', wood: 'Framiré',
     desc: 'Table basse en Framiré, lignes épurées, parfaite pour un salon contemporain.' },
-
+ 
   // ===== CHAISES =====
   { id: 'chs-01', name: 'Chaise Yamoussoukro', cat: 'Chaises', type: 'chaises', price: 95000, monogram: 'Y', label: '', wood: 'Framiré',
     desc: 'Chaise en Framiré massif, assise sculptée pour un confort durable.' },
   { id: 'chs-02', name: 'Banc Korhogo', cat: 'Chaises', type: 'chaises', price: 220000, monogram: 'K', label: '', wood: 'Iroko',
     desc: 'Banc traditionnel en Iroko, finition naturelle, idéal en entrée ou bout de lit.' },
-
+ 
   // ===== LITS =====
   { id: 'lit-01', name: 'Lit Bandama', cat: 'Lits', type: 'lits', price: 980000, monogram: 'B', label: '', wood: 'Iroko',
     desc: 'Lit double 180×200 en Iroko sculpté, tête de lit aux motifs traditionnels.' },
-
+ 
   // ===== ARMOIRES =====
   { id: 'arm-01', name: 'Armoire Cocody', cat: 'Armoires', type: 'armoires', price: 1280000, monogram: 'C', label: '', wood: 'Iroko',
     desc: 'Armoire 4 portes en Iroko massif, ferrures laiton, intérieur compartimenté.' },
   { id: 'arm-02', name: 'Armoire Zaranou', cat: 'Armoires', type: 'armoires', price: 890000, monogram: 'Z', label: '', wood: 'Framiré',
     desc: 'Armoire 3 portes en Framiré, design moderne, miroir en façade.' },
-
+ 
   // ===== CUISINES =====
   { id: 'cui-01', name: 'Cuisine Akwaba', cat: 'Cuisines', type: 'cuisines', price: 3450000, monogram: 'A', label: 'Sur-mesure', wood: 'Iroko',
     desc: 'Cuisine équipée complète en Iroko massif, plan de travail et placards façonnés à la commande.' },
-
+ 
   // ===== MEUBLES TV =====
   { id: 'mtv-01', name: 'Meuble TV Aboisso', cat: 'Meubles TV', type: 'meublestv', price: 320000, monogram: 'A', label: '', wood: 'Framiré',
     desc: 'Meuble TV en Framiré, rangements ouverts et tiroirs, finition huilée.' },
-
+ 
   // ===== BUREAUX =====
   { id: 'bur-01', name: 'Bureau Plateau', cat: 'Bureaux', type: 'bureaux', price: 850000, monogram: 'P', label: '', wood: 'Iroko',
     desc: 'Bureau directorial en Iroko massif, large plateau, tiroirs à fermeture douce.' },
-
+ 
   // ===== TECK / EXTÉRIEUR =====
   { id: 'ext-01', name: 'Salon de jardin Assinie', cat: 'Extérieur', type: 'exterieur', price: 1850000, monogram: 'A', label: 'Teck', wood: 'Teck',
     desc: 'Salon de jardin 4 places en Teck massif, résiste à la pluie et au soleil sans entretien lourd.' },
@@ -133,7 +133,7 @@ const CATALOG = [
     desc: 'Table de terrasse 6 places en Teck, finition huilée, idéale pour bord de mer.' },
   { id: 'ext-03', name: 'Chaise longue Sainte-Anne', cat: 'Extérieur', type: 'exterieur', price: 245000, monogram: 'S', label: '', wood: 'Teck',
     desc: 'Chaise longue inclinable en Teck massif, parfaite au bord de la piscine.' },
-
+ 
   // ===== SERRURES & ACCESSOIRES =====
   { id: 'ser-01', name: 'Serrure Atlas', cat: 'Serrures', type: 'serrures', price: 185000, monogram: 'A', label: 'Sécurité', wood: 'Laiton massif',
     desc: 'Serrure 5 points en laiton massif, finition vieux bronze, compatible portes Iroko.' },
@@ -143,7 +143,7 @@ const CATALOG = [
     desc: 'Crémone décorative en laiton ouvragé pour portes-fenêtres et grandes ouvertures.' },
   { id: 'ser-04', name: 'Heurtoir Akwaba', cat: 'Serrures', type: 'serrures', price: 62000, monogram: 'A', label: 'Sculpté', wood: 'Bronze',
     desc: 'Heurtoir en bronze coulé, motifs traditionnels ivoiriens taillés main.' },
-
+ 
   // ===== PORTES =====
   { id: 'por-01', name: 'Porte Akwaba', cat: 'Portes', type: 'portes', price: 980000, monogram: 'A', label: 'Sécurisée', wood: 'Iroko',
     desc: 'Porte d\'entrée en Iroko sculpté, structure renforcée et serrurerie haute sécurité.' },
@@ -154,10 +154,10 @@ const CATALOG = [
   { id: 'por-04', name: 'Porte Forteresse', cat: 'Portes', type: 'portes', price: 1180000, monogram: 'F', label: 'Sécurisée', wood: 'Iroko',
     desc: 'Porte d\'entrée sécurisée en Iroko avec renforts métalliques et serrure 5 points.' }
 ];
-
+ 
 const CART_KEY = 'home-by-tika-cart';
 const ORDERS_KEY = 'home-by-tika-orders';
-
+ 
 /* ============================================================
    SUPABASE — Suivi commandes multi-appareils
    Tombe en arrière sur localStorage si non configuré.
@@ -202,7 +202,7 @@ const Supa = {
     return res.json();
   }
 };
-
+ 
 const OrderService = {
   async create(orderData) {
     const id = orderData.id || generateOrderId();
@@ -217,7 +217,7 @@ const OrderService = {
       notes: orderData.notes || '',
       history: [{ status: 'received', at: new Date().toISOString(), note: '' }]
     };
-
+ 
     if (Supa.ready()) {
       try {
         const rows = await Supa.insert('orders', order);
@@ -231,7 +231,7 @@ const OrderService = {
     Orders.set(order);
     return order;
   },
-
+ 
   async getById(id) {
     if (!id) return null;
     if (Supa.ready()) {
@@ -242,7 +242,7 @@ const OrderService = {
     }
     return Orders.get(id);
   },
-
+ 
   async list() {
     if (Supa.ready()) {
       try {
@@ -252,15 +252,15 @@ const OrderService = {
     }
     return Orders.list();
   },
-
+ 
   async updateStatus(id, newStatus, note) {
     const cur = await this.getById(id);
     if (!cur) return null;
     const history = Array.isArray(cur.history) ? cur.history.slice() : [];
     history.push({ status: newStatus, at: new Date().toISOString(), note: note || '' });
-
+ 
     const changes = { status: newStatus, history: history, updated_at: new Date().toISOString() };
-
+ 
     if (Supa.ready()) {
       try {
         const rows = await Supa.update('orders', 'id=eq.' + encodeURIComponent(id), changes);
@@ -269,7 +269,7 @@ const OrderService = {
     }
     return Orders.updateStatus(id, newStatus, note);
   },
-
+ 
   async updateNotes(id, notes) {
     const changes = { notes: notes, updated_at: new Date().toISOString() };
     if (Supa.ready()) {
@@ -284,7 +284,159 @@ const OrderService = {
   }
 };
 window.OrderService = OrderService;
-
+ 
+/* ============================================================
+   PRODUCTSERVICE — Catalogue dynamique Supabase
+   ----------------------------------------------------------
+   Service de gestion des produits ajoutés depuis l'admin.
+   Tombe en arrière sur localStorage si Supabase non configuré.
+   Le site (boutique, galerie) lit ces produits EN PLUS du
+   manifeste hardcodé pour rétro-compatibilité.
+   ============================================================ */
+const PRODUCTS_KEY = 'home-by-tika-products';
+ 
+const LocalProducts = {
+  read() {
+    try { return JSON.parse(localStorage.getItem(PRODUCTS_KEY)) || {}; }
+    catch (e) { return {}; }
+  },
+  write(map) { localStorage.setItem(PRODUCTS_KEY, JSON.stringify(map)); },
+  get(id) { return this.read()[id] || null; },
+  list() {
+    return Object.values(this.read())
+      .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  },
+  set(p) {
+    const m = this.read();
+    m[p.id] = p;
+    this.write(m);
+  },
+  remove(id) {
+    const m = this.read();
+    delete m[id];
+    this.write(m);
+  }
+};
+ 
+/* Génère un slug à partir d'un nom : "Porte Lagune Premium" → "porte-lagune-premium" */
+function slugify(text) {
+  return String(text || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')  // retire accents
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 60);
+}
+window.HBT_slugify = slugify;
+ 
+/* Génère les métadonnées d'un nouveau produit à partir de {name, category} */
+function generateProductMeta(name, category) {
+  const slug = slugify(name) || ('produit-' + Date.now());
+  const folder = (window.HBT_FOLDER_MAP && window.HBT_FOLDER_MAP[category])
+                  || ('home-by-tika/produits/' + category);
+  const publicId = folder + '/' + slug;
+  const baseTag = (window.HBT_TAG_MAP && window.HBT_TAG_MAP[category]) || ('hbt_' + category);
+  const tags = [baseTag, 'hbt_product', 'hbt_' + slug];
+  return { slug, folder, publicId, tags };
+}
+window.HBT_generateProductMeta = generateProductMeta;
+ 
+const ProductService = {
+  /* Liste tous les produits publiés (catégorie optionnelle) */
+  async list(category) {
+    if (Supa.ready()) {
+      try {
+        let q = 'products?select=*&published=eq.true&order=created_at.desc';
+        if (category) q += '&category=eq.' + encodeURIComponent(category);
+        const rows = await Supa.select(q);
+        return rows || [];
+      } catch (e) { console.warn('[ProductService] list:', e.message); }
+    }
+    // Fallback localStorage
+    return LocalProducts.list().filter(p => !category || p.category === category);
+  },
+ 
+  /* Récupère un produit par ID (slug) */
+  async getById(id) {
+    if (!id) return null;
+    if (Supa.ready()) {
+      try {
+        const rows = await Supa.select('products?id=eq.' + encodeURIComponent(id) + '&select=*');
+        if (rows && rows[0]) return rows[0];
+      } catch (e) { console.warn('[ProductService] getById:', e.message); }
+    }
+    return LocalProducts.get(id);
+  },
+ 
+  /* Crée un produit. data = { name, category, price, wood, description, label, monogram, cloudinary_id, cloudinary_url, tags } */
+  async create(data) {
+    const meta = generateProductMeta(data.name, data.category);
+    const product = {
+      id: data.id || meta.slug,
+      name: data.name,
+      category: data.category,
+      price: (data.price != null) ? Number(data.price) : null,
+      wood: data.wood || '',
+      description: data.description || '',
+      label: data.label || '',
+      monogram: data.monogram || (data.name ? data.name.charAt(0).toUpperCase() : '·'),
+      cloudinary_id:  data.cloudinary_id  || meta.publicId,
+      cloudinary_url: data.cloudinary_url || '',
+      tags: data.tags || meta.tags,
+      published: data.published !== false
+    };
+ 
+    if (Supa.ready()) {
+      try {
+        const rows = await Supa.insert('products', product);
+        return rows[0] || product;
+      } catch (e) {
+        console.error('[ProductService] insert failed, fallback local:', e);
+      }
+    }
+    product.created_at = new Date().toISOString();
+    LocalProducts.set(product);
+    return product;
+  },
+ 
+  /* Met à jour un produit */
+  async update(id, changes) {
+    const patch = Object.assign({}, changes, { updated_at: new Date().toISOString() });
+    if (Supa.ready()) {
+      try {
+        const rows = await Supa.update('products', 'id=eq.' + encodeURIComponent(id), patch);
+        return rows[0] || null;
+      } catch (e) { console.error('[ProductService] update:', e); }
+    }
+    const cur = LocalProducts.get(id);
+    if (cur) {
+      Object.assign(cur, patch);
+      LocalProducts.set(cur);
+      return cur;
+    }
+    return null;
+  },
+ 
+  /* Supprime un produit */
+  async delete(id) {
+    if (Supa.ready()) {
+      try {
+        const res = await fetch(Supa.url() + '/rest/v1/products?id=eq.' + encodeURIComponent(id), {
+          method: 'DELETE',
+          headers: Supa.headers()
+        });
+        if (!res.ok) throw new Error('Supabase delete ' + res.status);
+        return true;
+      } catch (e) { console.error('[ProductService] delete:', e); }
+    }
+    LocalProducts.remove(id);
+    return true;
+  }
+};
+window.ProductService = ProductService;
+ 
 /* ============================================================
    COMMANDES — Statuts, store et helpers
    ============================================================ */
@@ -297,11 +449,11 @@ const ORDER_STATUSES = [
   { key: 'delivered',  label: 'Livré',                 roman: 'VI',  color: '#2e8a56' },
   { key: 'cancelled',  label: 'Annulé',                roman: '✕',   color: '#c45b5b' }
 ];
-
+ 
 function orderStatusInfo(key) {
   return ORDER_STATUSES.find(s => s.key === key) || ORDER_STATUSES[0];
 }
-
+ 
 const Orders = {
   read() {
     try { return JSON.parse(localStorage.getItem(ORDERS_KEY)) || {}; }
@@ -340,7 +492,7 @@ const Orders = {
   },
   count() { return Object.keys(this.read()).length; }
 };
-
+ 
 /* Génère un identifiant de commande lisible : HBT-AAMM-XXXX */
 function generateOrderId() {
   const d = new Date();
@@ -349,7 +501,7 @@ function generateOrderId() {
   const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
   return 'HBT-' + yy + mm + '-' + rand;
 }
-
+ 
 /* Formate une date pour affichage */
 function fmtDate(ts) {
   if (!ts) return '—';
@@ -359,13 +511,13 @@ function fmtDate(ts) {
     hour: '2-digit', minute: '2-digit'
   });
 }
-
-
+ 
+ 
 const PHOTOS_KEY = 'home-by-tika-photos';
 const PRICES_KEY = 'home-by-tika-prices';
 const FREE_SHIPPING_THRESHOLD = 1500000; // FCFA
 const SHIPPING_FEE = 50000; // FCFA
-
+ 
 /* ---------- Photos store (vraies images uploadées par l'admin) ---------- */
 const Photos = {
   read() {
@@ -382,7 +534,7 @@ const Photos = {
     return Math.round(raw.length * 2 / 1024); // ~Ko
   }
 };
-
+ 
 /* ---------- Prices store (prix personnalisés via l'admin) ---------- */
 const Prices = {
   read() {
@@ -399,14 +551,14 @@ const Prices = {
   clear() { localStorage.removeItem(PRICES_KEY); },
   count() { return Object.keys(this.read()).length; }
 };
-
+ 
 /* Prix effectif d'un produit (personnalisé > prix par défaut) */
 function getPrice(p) {
   if (!p) return 0;
   const custom = Prices.get(p.id);
   return custom !== null ? custom : p.price;
 }
-
+ 
 /* ---------- Overrides store (textes personnalisés : nom, desc, bois…) ---------- */
 const OVERRIDES_KEY = 'home-by-tika-overrides';
 const Overrides = {
@@ -444,13 +596,13 @@ const Overrides = {
     return n;
   }
 };
-
+ 
 /* Valeur effective d'un champ texte (surcharge > valeur par défaut) */
 function getField(p, field) {
   const v = Overrides.get(p.id, field);
   return (v !== undefined && v !== null) ? v : p[field];
 }
-
+ 
 /* ---------- VideoDB : stockage des vidéos dans IndexedDB ---------- */
 const VideoDB = {
   _db: null,
@@ -514,7 +666,7 @@ const VideoDB = {
     });
   }
 };
-
+ 
 /* Cache mémoire : id -> blob URL pour les vidéos */
 const VIDEO_URLS = {};
 async function loadVideoCache() {
@@ -529,7 +681,7 @@ async function loadVideoCache() {
   } catch (e) { /* IndexedDB indisponible */ }
 }
 function getVideoUrl(id) { return VIDEO_URLS[id] || null; }
-
+ 
 /* ---------- SiteImages : images générales (atelier, fond hero) ---------- */
 const SITE_IMAGES_KEY = 'home-by-tika-site-images';
 const SiteImages = {
@@ -548,7 +700,7 @@ const SiteImages = {
     return Math.round(raw.length * 2 / 1024); // ~Ko
   }
 };
-
+ 
 /* ---------- Cloudinary : cache des médias disponibles ---------- */
 // Au chargement de la page, on liste les médias présents dans le cloud
 // pour savoir lesquels sont disponibles (sinon on tomberait sur du 404).
@@ -559,11 +711,11 @@ const CloudCache = {
   siteHero: null,
   galleries: {}        // { 'portes': [{url, ...}], ... }
 };
-
+ 
 async function loadCloudCache() {
   if (!window.Cloudinary || !Cloudinary.isConfigured()) return;
   const TAGS = (window.CLOUDINARY_CONFIG && window.CLOUDINARY_CONFIG.tags) || {};
-
+ 
   // 1. Photos produits
   try {
     const list = await Cloudinary.listByTag(TAGS.product, 'image');
@@ -574,7 +726,7 @@ async function loadCloudCache() {
       }
     });
   } catch (e) {}
-
+ 
   // 2. Vidéos produits
   try {
     const list = await Cloudinary.listByTag(TAGS.productVideo, 'video');
@@ -587,22 +739,22 @@ async function loadCloudCache() {
       }
     });
   } catch (e) {}
-
+ 
   // 3. Image atelier (site)
   try {
     const list = await Cloudinary.listByTag(TAGS.siteAtelier, 'image');
     if (list.length) CloudCache.siteAtelier = Cloudinary.siteImageUrl('atelier', { width: 1400 });
   } catch (e) {}
-
+ 
   // 4. Fond hero (site)
   try {
     const list = await Cloudinary.listByTag(TAGS.siteHero, 'image');
     if (list.length) CloudCache.siteHero = Cloudinary.siteImageUrl('hero-bg', { width: 2200 });
   } catch (e) {}
-
+ 
   // 5. Galeries (chargées à la demande par chaque page qui en a besoin)
 }
-
+ 
 async function loadGallery(name) {
   if (!window.Cloudinary || !Cloudinary.isConfigured()) return [];
   const TAGS = (window.CLOUDINARY_CONFIG && window.CLOUDINARY_CONFIG.tags) || {};
@@ -623,13 +775,13 @@ async function loadGallery(name) {
   }));
   return CloudCache.galleries[name];
 }
-
+ 
 /* Applique les images du site (atelier, fond hero) sur les éléments du DOM
    Priorité : Cloudinary > localStorage > défaut */
 function applySiteImages() {
   const atelier = CloudCache.siteAtelier || SiteImages.get('atelier');
   const heroBg  = CloudCache.siteHero    || SiteImages.get('hero-bg');
-
+ 
   document.querySelectorAll('.story-image').forEach(el => {
     if (atelier) {
       el.style.backgroundImage = `url("${atelier}")`;
@@ -639,7 +791,7 @@ function applySiteImages() {
       el.classList.remove('has-image');
     }
   });
-
+ 
   const hero = document.querySelector('.hero');
   if (hero) {
     if (heroBg) {
@@ -651,7 +803,7 @@ function applySiteImages() {
     }
   }
 }
-
+ 
 /* ---------- Cart store ---------- */
 const Cart = {
   read() {
@@ -693,7 +845,7 @@ const Cart = {
     if (el) el.textContent = this.count();
   }
 };
-
+ 
 /* ---------- Toast notifications ---------- */
 function showToast(html) {
   let t = document.querySelector('.toast');
@@ -709,12 +861,12 @@ function showToast(html) {
   clearTimeout(t._h);
   t._h = setTimeout(() => t.classList.remove('show'), 2400);
 }
-
+ 
 /* ---------- Format ---------- */
 function fcfa(n) {
   return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n) + ' FCFA';
 }
-
+ 
 /* ---------- Render product card ---------- */
 function productCardHTML(p) {
   // Textes éventuellement surchargés
@@ -724,30 +876,40 @@ function productCardHTML(p) {
   const cat = getField(p, 'cat');
   const label = getField(p, 'label');
   const monogram = getField(p, 'monogram');
-
+ 
   // Médias — priorité Cloudinary (uniquement si réellement uploadé)
-  // > vidéo locale > photo locale > image par défaut > monogramme
+  // > vidéo locale > photo locale > image par défaut
+  // > NEW: URL conventionnelle via HBT_mediaUrl (manifeste) → placeholder SVG si 404
   const cldVideo = CloudCache.productVideos[p.id] || null;
   const localVideo = getVideoUrl(p.id);
   const videoSrc = cldVideo || localVideo || null;
-
+ 
   const cldImg = CloudCache.products[p.id] || null;
   const localImg = Photos.get(p.id);
-  const imgSrc = cldImg || localImg || p.image || null;
-
+  // Construction URL Cloudinary conventionnelle via le manifeste (toujours présente)
+  const hbtUrl = (typeof window.HBT_mediaUrl === 'function')
+                  ? window.HBT_mediaUrl(p.type, p.id, { width: 1000, crop: 'fill', gravity: 'auto' })
+                  : null;
+  const imgSrc = cldImg || localImg || p.image || hbtUrl || null;
+ 
   const hasMedia = !!(videoSrc || imgSrc);
-
+  // onerror : bascule vers placeholder SVG élégant (via media-manifest.js)
+  const safeName = (name || '').replace(/'/g, "\\'");
+  const onErrAttr = (typeof window.HBT_handleImageError === 'function')
+                      ? `HBT_handleImageError(this, '${safeName}', {monogram:'${monogram || ''}'})`
+                      : `HBT_imageError(this, '${monogram || ''}')`;
+ 
   let mediaHtml;
   if (videoSrc) {
     mediaHtml = `<video class="product-video" src="${videoSrc}" autoplay muted loop playsinline preload="metadata"
                         onerror="HBT_imageError(this, '${monogram || ''}')"></video>`;
   } else if (imgSrc) {
     mediaHtml = `<img src="${imgSrc}" alt="${name}" class="product-photo" loading="lazy" decoding="async"
-                      onerror="HBT_imageError(this, '${monogram || ''}')">`;
+                      onerror="${onErrAttr}">`;
   } else {
     mediaHtml = `<div class="icon">${monogram || ''}</div>`;
   }
-
+ 
   return `
     <article class="product-card" data-type="${p.type}">
       <div class="product-image${hasMedia ? ' has-photo' : ''}">
@@ -767,7 +929,7 @@ function productCardHTML(p) {
     </article>
   `;
 }
-
+ 
 function renderProducts(target, filter = 'all', limit = null) {
   const root = document.getElementById(target);
   if (!root) return;
@@ -775,14 +937,14 @@ function renderProducts(target, filter = 'all', limit = null) {
   if (limit) items = items.slice(0, limit);
   root.innerHTML = items.map(productCardHTML).join('');
 }
-
+ 
 /* ---------- Cart page render ---------- */
 function renderCartPage() {
   const list = document.getElementById('cart-list');
   const empty = document.getElementById('cart-empty');
   const summary = document.getElementById('cart-summary');
   if (!list) return;
-
+ 
   const items = Cart.read();
   if (items.length === 0) {
     list.innerHTML = '';
@@ -792,7 +954,7 @@ function renderCartPage() {
   }
   if (empty) empty.style.display = 'none';
   if (summary) summary.style.display = 'block';
-
+ 
   list.innerHTML = items.map(it => {
     const p = CATALOG.find(c => c.id === it.id);
     if (!p) return '';
@@ -824,7 +986,7 @@ function renderCartPage() {
       </li>
     `;
   }).join('');
-
+ 
   const total = Cart.total();
   const shipping = total >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
   const grand = total + shipping;
@@ -832,7 +994,7 @@ function renderCartPage() {
   document.getElementById('sum-shipping').textContent = shipping === 0 ? 'Offerte' : fcfa(shipping);
   document.getElementById('sum-total').innerHTML = `<strong>${fcfa(grand)}</strong>`;
 }
-
+ 
 /* ---------- Global click handlers ---------- */
 document.addEventListener('click', (e) => {
   // Add to cart
@@ -844,7 +1006,7 @@ document.addEventListener('click', (e) => {
     showToast(`<span class="gold">✓</span> &nbsp;${p ? p.name : 'Article'} ajouté au panier`);
     return;
   }
-
+ 
   // Filter products
   const fbtn = e.target.closest('.filter-btn');
   if (fbtn) {
@@ -853,7 +1015,7 @@ document.addEventListener('click', (e) => {
     renderProducts('shop-grid', fbtn.dataset.filter);
     return;
   }
-
+ 
   // Cart page actions
   const item = e.target.closest('.cart-item');
   if (item) {
@@ -871,14 +1033,14 @@ document.addEventListener('click', (e) => {
       showToast('<span class="gold">—</span> &nbsp;Article retiré du panier');
     }
   }
-
+ 
   // Checkout
   if (e.target.id === 'checkout-btn') {
     showToast('<span class="gold">✓</span> &nbsp;Commande simulée — Akwaba, merci !');
     setTimeout(() => { Cart.write([]); renderCartPage(); }, 1200);
   }
 });
-
+ 
 /* ---------- Forms ---------- */
 document.addEventListener('submit', (e) => {
   if (e.target.id === 'contact-form') {
@@ -896,32 +1058,32 @@ document.addEventListener('submit', (e) => {
     e.target.reset();
   }
 });
-
+ 
 /* ---------- Menu hamburger mobile (injection auto sur toutes les pages) ---------- */
 function injectMobileNav() {
   const nav = document.querySelector('.nav');
   if (!nav || nav.dataset.mobileInjected) return;
   nav.dataset.mobileInjected = 'true';
-
+ 
   const navActions = nav.querySelector('.nav-actions');
   if (!navActions) return;
-
+ 
   // Récupère les liens depuis la nav existante
   const navLinks = nav.querySelector('.nav-links');
   const linksHtml = navLinks ? navLinks.innerHTML : '';
-
+ 
   // Bouton hamburger
   const toggle = document.createElement('button');
   toggle.className = 'nav-toggle';
   toggle.setAttribute('aria-label', 'Ouvrir le menu');
   toggle.innerHTML = '<span></span>';
   navActions.appendChild(toggle);
-
+ 
   // Backdrop + drawer
   const backdrop = document.createElement('div');
   backdrop.className = 'mobile-nav-backdrop';
   document.body.appendChild(backdrop);
-
+ 
   const drawer = document.createElement('div');
   drawer.className = 'mobile-nav';
   const whatsapp = (window.HBT_CONFIG && window.HBT_CONFIG.contact && window.HBT_CONFIG.contact.whatsapp) || '2250748738671';
@@ -932,10 +1094,10 @@ function injectMobileNav() {
     '  <a href="https://wa.me/' + whatsapp + '" target="_blank" rel="noopener">Nous contacter</a>' +
     '</div>';
   document.body.appendChild(drawer);
-
+ 
   function openMenu()  { drawer.classList.add('open'); backdrop.classList.add('open'); toggle.classList.add('open'); document.body.classList.add('menu-open'); }
   function closeMenu() { drawer.classList.remove('open'); backdrop.classList.remove('open'); toggle.classList.remove('open'); document.body.classList.remove('menu-open'); }
-
+ 
   toggle.addEventListener('click', () => {
     drawer.classList.contains('open') ? closeMenu() : openMenu();
   });
@@ -944,7 +1106,7 @@ function injectMobileNav() {
   drawer.querySelectorAll('a').forEach(a => a.addEventListener('click', closeMenu));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
 }
-
+ 
 /* ---------- WhatsApp floating button ---------- */
 function injectWhatsApp() {
   if (document.querySelector('.wa-float')) return;
@@ -961,13 +1123,13 @@ function injectWhatsApp() {
   `;
   document.body.appendChild(a);
 }
-
+ 
 /* ---------- Init ---------- */
 document.addEventListener('DOMContentLoaded', async () => {
   Cart.refreshBadge();
   injectMobileNav();
   injectWhatsApp();
-
+ 
   // Pré-charge en parallèle : cache Cloudinary + cache vidéos locales
   try {
     await Promise.all([
@@ -975,15 +1137,101 @@ document.addEventListener('DOMContentLoaded', async () => {
       loadVideoCache().catch(() => {})
     ]);
   } catch (e) { /* ignore */ }
-
+ 
   // Applique les images du site (atelier, fond hero) avec priorité Cloudinary
   applySiteImages();
-
+ 
   // Rend les grilles de produits
   renderProducts('home-grid', 'all', 4);
   renderProducts('shop-grid', 'all');
   renderCartPage();
-
+ 
   // Galerie automatique sur les pages qui en ont besoin
   if (typeof renderAutoGalleries === 'function') renderAutoGalleries();
 });
+ 
+/* =========================================================
+   HOME BY TIKA — Mobile menu (hamburger drawer) — additif v2
+   ----------------------------------------------------------
+   Injection automatique d'un menu hamburger + drawer sur
+   toutes les pages. Aucun HTML à modifier — ce code se branche
+   sur le <header class="site-header"> existant.
+   ========================================================= */
+(function () {
+  function init() {
+    const header = document.querySelector('.site-header .nav');
+    if (!header) return;
+    if (header.querySelector('.hbt-burger')) return;  // déjà injecté
+ 
+    // 1) Clone le menu existant pour le drawer
+    const navLinks = header.querySelector('.nav-links');
+    if (!navLinks) return;
+    const links = Array.from(navLinks.querySelectorAll('a')).map(a => ({
+      href: a.getAttribute('href'),
+      text: a.textContent.trim(),
+      active: a.classList.contains('active'),
+      i18n: a.getAttribute('data-i18n') || ''
+    }));
+ 
+    // 2) Crée le bouton hamburger
+    const burger = document.createElement('button');
+    burger.type = 'button';
+    burger.className = 'hbt-burger';
+    burger.setAttribute('aria-label', 'Menu');
+    burger.innerHTML = '<span></span><span></span><span></span>';
+ 
+    // 3) Crée le drawer + overlay
+    const drawer = document.createElement('aside');
+    drawer.className = 'hbt-drawer';
+    drawer.setAttribute('aria-hidden', 'true');
+    drawer.innerHTML = '<ul>' +
+      links.map(l => '<li><a href="' + l.href + '"' +
+        (l.active ? ' class="active"' : '') +
+        (l.i18n ? ' data-i18n="' + l.i18n + '"' : '') +
+        '>' + l.text + '</a></li>').join('') +
+      '</ul>';
+ 
+    const overlay = document.createElement('div');
+    overlay.className = 'hbt-drawer-overlay';
+ 
+    // 4) Wire open/close
+    function open() {
+      burger.classList.add('open');
+      drawer.classList.add('open');
+      overlay.classList.add('open');
+      drawer.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+    function close() {
+      burger.classList.remove('open');
+      drawer.classList.remove('open');
+      overlay.classList.remove('open');
+      drawer.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+    burger.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (drawer.classList.contains('open')) close(); else open();
+    });
+    overlay.addEventListener('click', close);
+    drawer.querySelectorAll('a').forEach(a => a.addEventListener('click', close));
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+ 
+    // 5) Insère le burger avant les nav-actions (panier), drawer + overlay en body
+    const actions = header.querySelector('.nav-actions');
+    if (actions) {
+      actions.parentNode.insertBefore(burger, actions);
+    } else {
+      header.appendChild(burger);
+    }
+    document.body.appendChild(overlay);
+    document.body.appendChild(drawer);
+  }
+ 
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+ 
