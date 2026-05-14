@@ -42,8 +42,8 @@ window.HBT_MEDIA = {
   portes: [
     { 
   id: 'por-04',
-  name: 'Porte Moderne',
-   folder: 'produits'    
+  name: 'Porte Moderne'
+      
     },
   ],
   atelier: [
