@@ -73,8 +73,8 @@ window.HBT_CONFIG = {
      3. SQL Editor → exécutez le script CREATE TABLE du README
   ===================================================== */
   supabase: {
-    url:    'YOUR_SUPABASE_URL_HERE',          // ex. https://abc123.supabase.co
-    anonKey: 'YOUR_SUPABASE_ANON_KEY_HERE'     // clé anonyme publique
+    url:    'https://dcivylqrrlmhvjobgdnk.supabase.co',          // ex. https://abc123.supabase.co
+    anonKey: 'sb_publishable_4g3DVpDN644fIw8ecwEueA_W3V-rdqD'     // clé anonyme publique
   },
 
   /* ========== ADMINISTRATION ==========
