@@ -40,11 +40,10 @@ window.HBT_MEDIA = {
 
   /* ============ GALERIE ============ */
   portes: [
-    { 
-  id: 'por-04',
-  name: 'Porte Moderne'
-      
-    },
+    // Exemple : { id: 'porte-akwaba', name: 'Porte Akwaba', price: '980 000 FCFA', wood: 'Iroko' }
+  ],
+  mobilier: [
+    // Exemple : { id: 'salon-baoule', name: 'Salon Baoulé', wood: 'Iroko' }
   ],
   atelier: [
     // Exemple : { id: 'atelier-vue-1', name: 'Vue d\'atelier' }
@@ -84,27 +83,42 @@ window.HBT_MEDIA = {
 (function () {
   const CLOUD = (window.HBT_CONFIG && window.HBT_CONFIG.cloudinary && window.HBT_CONFIG.cloudinary.cloudName) || 'dcj4xsp83';
 
-  // Dossier Cloudinary par catégorie
+  // Dossier Cloudinary par catégorie.
+  // Tous les PRODUITS (boutique + portes + serrures) vivent sous
+  // home-by-tika/produits/<categorie> car c'est ainsi qu'ils
+  // sont rangés à l'upload depuis l'admin.
+  // Les galeries non-produit (atelier, collections, mobilier, videos)
+  // ont leur propre dossier à la racine de home-by-tika.
   const FOLDER_MAP = {
-    portes:      'home-by-tika/portes',
+    // Produits (boutique + galerie produits)
+    portes:      'home-by-tika/produits/portes',
+    serrures:    'home-by-tika/produits/serrures',
+    salons:      'home-by-tika/produits/salons',
+    tables:      'home-by-tika/produits/tables',
+    chaises:     'home-by-tika/produits/chaises',
+    lits:        'home-by-tika/produits/lits',
+    armoires:    'home-by-tika/produits/armoires',
+    cuisines:    'home-by-tika/produits/cuisines',
+    meublestv:   'home-by-tika/produits/meublestv',
+    bureaux:     'home-by-tika/produits/bureaux',
+    exterieur:   'home-by-tika/produits/exterieur',
+
+    // Galeries non-produit
     mobilier:    'home-by-tika/mobilier',
     atelier:     'home-by-tika/atelier',
     collections: 'home-by-tika/collections',
-    serrures:    'home-by-tika/serrures',
     videos:      'home-by-tika/videos',
-    salons:      'home-by-tika/salons',
-    tables:      'home-by-tika/tables',
-    chaises:     'home-by-tika/chaises',
-    lits:        'home-by-tika/lits',
-    armoires:    'home-by-tika/armoires',
-    cuisines:    'home-by-tika/cuisines',
-    meublestv:   'home-by-tika/meublestv',
-    bureaux:     'home-by-tika/bureaux',
-    exterieur:   'home-by-tika/exterieur',
+
+    // Image du site (hero, story-image atelier)
     site:        'home-by-tika/site'
   };
 
-  /* Construit l'URL d'un média Cloudinary depuis (catégorie, id) */
+  /* Construit l'URL d'un média Cloudinary depuis (catégorie, id)
+     Exemple pour portes/por-04 :
+       https://res.cloudinary.com/dcj4xsp83/image/upload/
+         f_auto,q_auto,w_1200,c_fill,g_auto/
+         home-by-tika/produits/portes/por-04.jpg
+  */
   window.HBT_mediaUrl = function (category, id, opts) {
     opts = opts || {};
     const folder = FOLDER_MAP[category] || ('home-by-tika/' + category);
@@ -116,8 +130,23 @@ window.HBT_MEDIA = {
     if (opts.crop)    transforms.push('c_' + opts.crop);
     if (opts.gravity) transforms.push('g_' + opts.gravity);
     const resource = opts.video ? 'video' : 'image';
-    return 'https://res.cloudinary.com/' + CLOUD + '/' + resource +
-           '/upload/' + transforms.join(',') + '/' + folder + '/' + id;
+
+    // Si l'id ne contient pas déjà une extension, on ajoute .jpg (image) ou .mp4 (video).
+    // Cloudinary accepte les deux (avec/sans extension) et la délivre dans le bon format
+    // grâce à f_auto, mais l'extension explicite évite tout ambiguïté côté CDN.
+    let finalId = id;
+    if (!/\.[a-z0-9]{2,5}$/i.test(id)) {
+      finalId = id + (opts.video ? '.mp4' : '.jpg');
+    }
+
+    const url = 'https://res.cloudinary.com/' + CLOUD + '/' + resource +
+                '/upload/' + transforms.join(',') + '/' + folder + '/' + finalId;
+
+    // Debug léger en console (visible avec F12)
+    if (window.HBT_DEBUG_MEDIA) {
+      console.log('[HBT_mediaUrl]', { category, id, folder, finalId, url });
+    }
+    return url;
   };
 
   /* Retourne la liste des médias d'une catégorie avec URL prête à afficher */
