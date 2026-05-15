@@ -245,5 +245,64 @@
 <script src="media-manifest.js"></script>
 <script src="i18n.js"></script>
 <script src="script.js"></script>
+
+<script>
+/* =========================================================
+   ATELIER — Image dynamique branchée sur le système admin
+   ----------------------------------------------------------
+   Charge l'image uploadée depuis l'admin (dossier Cloudinary
+   home-by-tika/site/atelier). Triple fallback :
+     1) CloudCache.siteAtelier (populé par script.js loadCloudCache)
+     2) HBT_mediaUrl('site', 'atelier') — URL conventionnelle
+     3) Manifest HBT_MEDIA.site.atelier (si renseigné)
+   Si aucune image n'est trouvée, le placeholder élégant (gradient
+   sable→chocolat) défini dans styles.css reste affiché.
+   ========================================================= */
+(function () {
+  function applyAtelierImage(url) {
+    if (!url) return;
+    // Test : on s'assure que l'image existe AVANT d'appliquer
+    const probe = new Image();
+    probe.onload = function () {
+      document.querySelectorAll('.story-image').forEach(el => {
+        el.style.backgroundImage = `url("${url}")`;
+        el.classList.add('has-image');
+      });
+      if (window.HBT_DEBUG_MEDIA) console.log('[Atelier] Image appliquée :', url);
+    };
+    probe.onerror = function () {
+      if (window.HBT_DEBUG_MEDIA) console.warn('[Atelier] Image absente :', url);
+    };
+    probe.src = url;
+  }
+
+  function loadAtelier() {
+    // 1) CloudCache (peuplé par loadCloudCache de script.js)
+    if (window.CloudCache && window.CloudCache.siteAtelier) {
+      return applyAtelierImage(window.CloudCache.siteAtelier);
+    }
+    // 2) URL conventionnelle via le système média HBT
+    if (typeof window.HBT_mediaUrl === 'function') {
+      const url = window.HBT_mediaUrl('site', 'atelier', {
+        width: 1200, crop: 'fill', gravity: 'auto'
+      });
+      applyAtelierImage(url);
+    }
+    // 3) Manifest (si l'admin a poussé via export manifest)
+    if (typeof window.HBT_siteImageUrl === 'function') {
+      const u = window.HBT_siteImageUrl('atelier', { width: 1200, crop: 'fill' });
+      if (u) applyAtelierImage(u);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadAtelier);
+  } else {
+    loadAtelier();
+  }
+  // Re-essai 2 sec après chargement (au cas où CloudCache se peuple tard)
+  setTimeout(loadAtelier, 2000);
+})();
+</script>
 </body>
 </html>
