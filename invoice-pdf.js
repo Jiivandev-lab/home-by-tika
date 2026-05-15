@@ -209,13 +209,27 @@
     </tbody>
   </table>
 
-  <!-- TOTAL -->
+  <!-- TOTAL + PAIEMENT (si facture) -->
   <div style="text-align:right;margin-bottom:24px;">
     <table style="display:inline-block;border-collapse:collapse;">
       <tr>
         <td style="padding:8px 16px;color:#7a6f5e;font-size:10pt;letter-spacing:1.5px;text-transform:uppercase;">Total général</td>
         <td style="padding:8px 16px;background:#1a1410;color:#c89968;font-size:14pt;font-weight:700;font-family:'Playfair Display','Georgia',serif;text-align:right;min-width:160px;">${fcfa(totalHT)}</td>
       </tr>
+      ${(isInvoice && doc.payment && doc.payment.amountPaid > 0) ? `
+      <tr>
+        <td style="padding:6px 16px;color:#7a6f5e;font-size:9.5pt;letter-spacing:1px;text-transform:uppercase;">Montant payé</td>
+        <td style="padding:6px 16px;background:rgba(46,138,86,0.1);color:#2e8a56;font-size:11pt;font-weight:700;text-align:right;border-left:3px solid #2e8a56;">${fcfa(doc.payment.amountPaid)}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 16px;color:#7a6f5e;font-size:9.5pt;letter-spacing:1px;text-transform:uppercase;">Solde restant</td>
+        <td style="padding:6px 16px;background:${Math.max(0, totalHT - doc.payment.amountPaid) > 0 ? 'rgba(196,91,91,0.1)' : 'rgba(46,138,86,0.1)'};color:${Math.max(0, totalHT - doc.payment.amountPaid) > 0 ? '#c45b5b' : '#2e8a56'};font-size:11pt;font-weight:700;text-align:right;border-left:3px solid ${Math.max(0, totalHT - doc.payment.amountPaid) > 0 ? '#c45b5b' : '#2e8a56'};">${fcfa(Math.max(0, totalHT - doc.payment.amountPaid))}</td>
+      </tr>
+      ${doc.payment.method ? `<tr>
+        <td style="padding:6px 16px;color:#7a6f5e;font-size:9.5pt;letter-spacing:1px;text-transform:uppercase;">Mode de paiement</td>
+        <td style="padding:6px 16px;color:#1a1410;font-size:10pt;font-weight:600;text-align:right;">${escapeHtml(doc.payment.method)}</td>
+      </tr>` : ''}
+      ` : ''}
       <tr>
         <td colspan="2" style="padding:4px 16px;color:#7a6f5e;font-size:8pt;text-align:right;">Prix exprimés en FCFA · Mobile Money & virement acceptés</td>
       </tr>
@@ -248,7 +262,9 @@
       orderId: '',
       client: { name: '', phone: '', email: '', address: '' },
       items: [{ name: '', dimensions: '', wood: '', qty: 1, unitPrice: '', description: '' }],
-      notesHtml: ''
+      notesHtml: '',
+      // Infos paiement (utilisées pour facture)
+      payment: { method: '', amountPaid: 0 }
     };
   }
 
@@ -418,7 +434,7 @@
       }
     });
 
-    // Sélection d'une commande Supabase
+    // Sélection d'une commande Supabase → pré-remplit tout (client, articles, paiement)
     $('#doc-order').addEventListener('change', async (e) => {
       const orderId = e.target.value;
       if (!orderId) return;
@@ -443,6 +459,18 @@
             description: ''
           }));
           renderItems();
+        }
+        // Infos paiement (utilisées dans le PDF facture)
+        currentDoc.payment = {
+          method:     o.payment_method || '',
+          amountPaid: Number(o.amount_paid) || 0
+        };
+        // Si commande payée → propose Facture par défaut
+        if (o.payment_confirmed && $('#doc-type').value !== 'invoice') {
+          $('#doc-type').value = 'invoice';
+          currentDoc.type = 'invoice';
+          currentDoc.id = genDocId('FAC');
+          $('#doc-id').value = currentDoc.id;
         }
       } catch (err) {
         console.error('[invoice-pdf] getOrder:', err);
@@ -527,6 +555,25 @@
     };
     try {
       await window.html2pdf().from(container.firstElementChild).set(opt).save();
+      // Si c'est une facture liée à une commande Supabase → on sauvegarde l'invoice_id
+      if (currentDoc.type === 'invoice' && currentDoc.orderId && window.HBT_CONFIG && window.HBT_CONFIG.isSupabaseReady && window.HBT_CONFIG.isSupabaseReady()) {
+        try {
+          await fetch(window.HBT_CONFIG.supabase.url + '/rest/v1/orders?id=eq.' + encodeURIComponent(currentDoc.orderId), {
+            method: 'PATCH',
+            headers: {
+              apikey: window.HBT_CONFIG.supabase.anonKey,
+              Authorization: 'Bearer ' + window.HBT_CONFIG.supabase.anonKey,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              invoice_id: currentDoc.id,
+              updated_at: new Date().toISOString()
+            })
+          });
+        } catch (sbErr) {
+          console.warn('[invoice-pdf] Sauvegarde invoice_id échouée :', sbErr.message);
+        }
+      }
       if (window.HBT_toast) window.HBT_toast('✓ PDF téléchargé : <strong>' + currentDoc.id + '</strong>', '#2e8a56');
     } catch (e) {
       console.error('[invoice-pdf] PDF:', e);
