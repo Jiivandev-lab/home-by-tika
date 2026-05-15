@@ -331,15 +331,47 @@ function slugify(text) {
 }
 window.HBT_slugify = slugify;
 
-/* Génère les métadonnées d'un nouveau produit à partir de {name, category} */
+/* Génère les métadonnées d'un nouveau produit à partir de {name, category}
+   --------------------------------------------------------------------------
+   Auto-détecte la catégorie (slug, label, ou nouvelle) via HBT_categoryInfo.
+   Renvoie : { slug, folder, publicId, tags, categorySlug, categoryLabel }
+   Convention tags (3 universels par produit) :
+     • hbt_product
+     • hbt_<categoryTagSlug>          (ex: hbt_portes, hbt_pots_de_fleurs)
+     • hbt_category_<categoryTagSlug> (ex: hbt_category_portes)
+*/
 function generateProductMeta(name, category) {
-  const slug = slugify(name) || ('produit-' + Date.now());
-  const folder = (window.HBT_FOLDER_MAP && window.HBT_FOLDER_MAP[category])
-                  || ('home-by-tika/produits/' + category);
-  const publicId = folder + '/' + slug;
-  const baseTag = (window.HBT_TAG_MAP && window.HBT_TAG_MAP[category]) || ('hbt_' + category);
-  const tags = [baseTag, 'hbt_product', 'hbt_' + slug];
-  return { slug, folder, publicId, tags };
+  // Résolution catégorie (accepte slug, label, ou nouvelle)
+  const cat = (typeof window.HBT_categoryInfo === 'function')
+                ? window.HBT_categoryInfo(category)
+                : { slug: String(category || '').toLowerCase(), label: String(category || ''), type: 'produit' };
+  const categorySlug  = cat.slug;
+  const categoryLabel = cat.label;
+
+  // Slug produit (nom du produit slugifié)
+  const productSlug = slugify(name) || ('produit-' + Date.now());
+
+  // Dossier Cloudinary (depuis HBT_categoryFolder si dispo, sinon fallback robuste)
+  const folder = (typeof window.HBT_categoryFolder === 'function')
+                  ? window.HBT_categoryFolder(cat)
+                  : ('home-by-tika/produits/' + categorySlug);
+
+  // Public ID complet (= folder/productSlug)
+  const publicId = folder + '/' + productSlug;
+
+  // Tags Cloudinary (3 universels)
+  const catTags = (typeof window.HBT_categoryTags === 'function')
+                    ? window.HBT_categoryTags(cat)
+                    : ['hbt_product', 'hbt_' + categorySlug.replace(/-/g, '_'), 'hbt_category_' + categorySlug.replace(/-/g, '_')];
+
+  return {
+    slug:          productSlug,
+    folder:        folder,
+    publicId:      publicId,
+    tags:          catTags,
+    categorySlug:  categorySlug,
+    categoryLabel: categoryLabel
+  };
 }
 window.HBT_generateProductMeta = generateProductMeta;
 
@@ -370,21 +402,23 @@ const ProductService = {
     return LocalProducts.get(id);
   },
 
-  /* Crée un produit. data = { name, category, price, wood, description, label, monogram, cloudinary_id, cloudinary_url, tags } */
+  /* Crée un produit. data = { name, category, price, wood, description, label, monogram, cloudinary_id|public_id, cloudinary_url|image_url, tags, folder }
+     Tout est dérivé automatiquement de la catégorie via HBT_generateProductMeta. */
   async create(data) {
     const meta = generateProductMeta(data.name, data.category);
     const product = {
       id: data.id || meta.slug,
       name: data.name,
-      category: data.category,
-      price: (data.price != null) ? Number(data.price) : null,
+      category: meta.categorySlug,       // toujours le slug normalisé
+      price: (data.price != null && data.price !== '') ? Number(data.price) : null,
       wood: data.wood || '',
       description: data.description || '',
       label: data.label || '',
       monogram: data.monogram || (data.name ? data.name.charAt(0).toUpperCase() : '·'),
-      cloudinary_id:  data.cloudinary_id  || meta.publicId,
-      cloudinary_url: data.cloudinary_url || '',
+      cloudinary_id:  data.cloudinary_id  || data.public_id  || meta.publicId,
+      cloudinary_url: data.cloudinary_url || data.image_url  || '',
       tags: data.tags || meta.tags,
+      folder: data.folder || meta.folder,
       published: data.published !== false
     };
 
@@ -393,7 +427,22 @@ const ProductService = {
         const rows = await Supa.insert('products', product);
         return rows[0] || product;
       } catch (e) {
-        console.error('[ProductService] insert failed, fallback local:', e);
+        // Si l'erreur vient d'une colonne manquante (folder non encore en schema),
+        // retente sans cette colonne pour rétro-compat.
+        const msg = String(e && e.message || '');
+        if (/column.*folder/i.test(msg) || /folder.*not.*exist/i.test(msg)) {
+          console.warn('[ProductService] Colonne "folder" absente — retry sans (ajoutez-la via supabase-schema.sql)');
+          const slim = Object.assign({}, product);
+          delete slim.folder;
+          try {
+            const rows = await Supa.insert('products', slim);
+            return rows[0] || slim;
+          } catch (e2) {
+            console.error('[ProductService] insert (slim) failed, fallback local:', e2);
+          }
+        } else {
+          console.error('[ProductService] insert failed, fallback local:', e);
+        }
       }
     }
     product.created_at = new Date().toISOString();
