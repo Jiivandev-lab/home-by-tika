@@ -16,18 +16,31 @@
 
 -- ===================== TABLE ORDERS =====================
 CREATE TABLE IF NOT EXISTS orders (
-  id            TEXT PRIMARY KEY,
-  customer_name TEXT NOT NULL,
-  phone         TEXT NOT NULL,
-  address       TEXT DEFAULT '',
-  items         JSONB DEFAULT '[]'::jsonb,
-  total         INTEGER DEFAULT 0,
-  status        TEXT DEFAULT 'received',
-  notes         TEXT DEFAULT '',
-  history       JSONB DEFAULT '[]'::jsonb,
-  created_at    TIMESTAMPTZ DEFAULT NOW(),
-  updated_at    TIMESTAMPTZ DEFAULT NOW()
+  id                 TEXT PRIMARY KEY,
+  customer_name      TEXT NOT NULL,
+  phone              TEXT NOT NULL,
+  address            TEXT DEFAULT '',
+  items              JSONB DEFAULT '[]'::jsonb,
+  total              INTEGER DEFAULT 0,
+  status             TEXT DEFAULT 'received',
+  notes              TEXT DEFAULT '',
+  history            JSONB DEFAULT '[]'::jsonb,
+  -- v3 : paiement + message client + facture
+  payment_confirmed  BOOLEAN DEFAULT false,
+  amount_paid        INTEGER DEFAULT 0,
+  payment_method     TEXT DEFAULT '',
+  message_to_client  TEXT DEFAULT '',
+  invoice_id         TEXT DEFAULT '',
+  created_at         TIMESTAMPTZ DEFAULT NOW(),
+  updated_at         TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Ajouts idempotents pour table existante (sans destruction)
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_confirmed  BOOLEAN DEFAULT false;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS amount_paid        INTEGER DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method     TEXT    DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS message_to_client  TEXT    DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS invoice_id         TEXT    DEFAULT '';
 
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 
