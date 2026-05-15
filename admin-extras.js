@@ -614,21 +614,24 @@
      SECTION 2 — GESTION DES COMMANDES
      (liste Supabase + recherche + filtre + update statut inline)
      ============================================================ */
-  // 6 statuts demandés par HOME BY TIKA. La compatibilité avec les
-  // statuts historiques (finishing, shipping) est gérée par fallback.
+  // 8 statuts de fabrication HOME BY TIKA + Annulée. Ordre = progression.
+  // Rétrocompat des anciens keys (finishing, ready) via LEGACY_STATUS_LABELS.
   const ORDER_STATUSES_ADMIN = [
-    { key: 'received',   label: 'Reçue',          color: '#8a7860' },
-    { key: 'confirmed',  label: 'Confirmée',      color: '#8a5a2a' },
-    { key: 'preparing',  label: 'En fabrication', color: '#b48249' },
-    { key: 'ready',      label: 'Prête',          color: '#d4a766' },
-    { key: 'delivered',  label: 'Livrée',         color: '#2e8a56' },
-    { key: 'cancelled',  label: 'Annulée',        color: '#c45b5b' }
+    { key: 'received',           label: 'Commande reçue',      color: '#8a7860' },
+    { key: 'confirmed',          label: 'Validation en cours', color: '#8a5a2a' },
+    { key: 'preparing',          label: 'En fabrication',      color: '#b48249' },
+    { key: 'wood_prep',          label: 'Bois en préparation', color: '#a06b2a' },
+    { key: 'varnishing',         label: 'Vernissage',          color: '#c89968' },
+    { key: 'delivery_scheduled', label: 'Livraison programmée',color: '#d4a766' },
+    { key: 'shipping',           label: 'En cours de livraison', color: '#e0b878' },
+    { key: 'delivered',          label: 'Livrée',              color: '#2e8a56' },
+    { key: 'cancelled',          label: 'Annulée',             color: '#c45b5b' }
   ];
 
   // Anciennes valeurs encore possibles dans la DB → labels lisibles
   const LEGACY_STATUS_LABELS = {
     finishing: 'Finition',
-    shipping:  'En livraison'
+    ready:     'Produit prêt'
   };
 
   function statusInfo(key) {
