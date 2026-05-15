@@ -122,6 +122,9 @@
       0%, 100% { box-shadow: 0 0 0 6px rgba(212, 167, 102, 0.18); }
       50%      { box-shadow: 0 0 0 12px rgba(212, 167, 102, 0.05); }
     }
+    @keyframes hbt-spin {
+      to { transform: rotate(360deg); }
+    }
 
     .order-empty {
       text-align: center;
@@ -198,6 +201,13 @@
           <button type="submit" class="btn btn-primary" data-i18n="tracking.search">Suivre ma commande</button>
         </form>
 
+        <div id="order-actions" style="display:none;text-align:right;margin-bottom:1.2rem;">
+          <button type="button" id="order-refresh" class="btn btn-ghost" style="font-size:0.78rem;letter-spacing:1.5px;">
+            <span id="order-refresh-spin" style="display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;margin-right:0.5rem;vertical-align:middle;display:none;animation:hbt-spin 0.7s linear infinite;"></span>
+            <span id="order-refresh-text">↻ Rafraîchir le suivi</span>
+          </button>
+        </div>
+
         <div id="order-result"></div>
 
       </div>
@@ -225,22 +235,25 @@
   const result  = document.getElementById('order-result');
   const idInput = document.getElementById('order-id');
 
-  // 8 statuts de fabrication dans l'ordre (sans Annulé qui est terminal)
+  // 10 statuts complets HOME BY TIKA dans l'ordre (sans Annulé)
   const STEPS = [
     { key: 'received',           label: 'Commande reçue' },
-    { key: 'confirmed',          label: 'Validation en cours' },
+    { key: 'payment_confirmed',  label: 'Paiement confirmé' },
+    { key: 'design_approved',    label: 'Design validé' },
+    { key: 'wood_prep',          label: 'Bois / matériel préparé' },
     { key: 'preparing',          label: 'En fabrication' },
-    { key: 'wood_prep',          label: 'Bois en préparation' },
-    { key: 'varnishing',         label: 'Vernissage' },
+    { key: 'varnishing',         label: 'Finition / vernissage' },
+    { key: 'quality_check',      label: 'Contrôle qualité' },
     { key: 'delivery_scheduled', label: 'Livraison programmée' },
-    { key: 'shipping',           label: 'En cours de livraison' },
+    { key: 'shipping',           label: 'En livraison' },
     { key: 'delivered',          label: 'Livrée' }
   ];
 
   // Compat statuts hérités → mappage vers les nouveaux
   const LEGACY_STATUS_MAP = {
-    finishing: 'varnishing',  // ancien "finition" → nouveau "vernissage"
-    ready:     'delivery_scheduled'  // ancien "produit prêt" → "livraison programmée"
+    finishing: 'varnishing',
+    ready:     'delivery_scheduled',
+    confirmed: 'payment_confirmed'
   };
   function normalizeStatus(s) {
     return LEGACY_STATUS_MAP[s] || s;
@@ -323,8 +336,15 @@
           ${o.address ? `<div style="grid-column:1/-1;"><strong>Adresse de livraison</strong>${o.address}</div>` : ''}
           <div style="grid-column:1/-1;"><strong>Articles</strong>${itemsList}</div>
           ${o.total ? `<div><strong>Total</strong>${fcfaFmt(o.total)}</div>` : ''}
+          ${o.payment_confirmed ? `<div><strong>Paiement</strong><span style="color:#2e8a56;">✓ Confirmé</span>${o.payment_method ? ' · ' + o.payment_method : ''}</div>` : ''}
+          ${o.invoice_id ? `<div style="grid-column:1/-1;"><strong>Facture</strong><span style="font-family:Menlo,monospace;color:var(--gold);">${o.invoice_id}</span></div>` : ''}
           ${o.notes ? `<div style="grid-column:1/-1;"><strong>Note</strong>${o.notes}</div>` : ''}
         </div>
+
+        ${o.message_to_client ? `<div style="background:rgba(200,153,104,0.08);border-left:3px solid var(--gold);padding:1rem 1.2rem;margin:1.5rem 0;border-radius:2px;">
+          <strong style="color:var(--gold);font-size:0.72rem;letter-spacing:2px;text-transform:uppercase;display:block;margin-bottom:0.5rem;">Message de l'atelier</strong>
+          <div style="font-size:0.95rem;color:var(--ivory);line-height:1.55;">${o.message_to_client.replace(/\n/g, '<br>')}</div>
+        </div>` : ''}
 
         <div class="timeline">
           ${STEPS.map((step, i) => {
@@ -346,17 +366,42 @@
       </div>`;
   }
 
-  async function lookup(id) {
-    result.innerHTML = '<div class="order-empty">Chargement…</div>';
+  const actionsBox = document.getElementById('order-actions');
+  const refreshBtn = document.getElementById('order-refresh');
+  const refreshSpin = document.getElementById('order-refresh-spin');
+  const refreshText = document.getElementById('order-refresh-text');
+  let currentOrderId = null;
+
+  async function lookup(id, opts) {
+    opts = opts || {};
+    if (!opts.silent) {
+      result.innerHTML = `
+        <div class="order-empty" style="display:flex;align-items:center;justify-content:center;gap:0.8rem;">
+          <span style="display:inline-block;width:18px;height:18px;border:2.5px solid var(--gold);border-right-color:transparent;border-radius:50%;animation:hbt-spin 0.7s linear infinite;"></span>
+          <span>Chargement de la commande…</span>
+        </div>`;
+    }
     try {
+      // BUST CACHE : ajoute un timestamp pour forcer une vraie lecture Supabase
+      // OrderService.getById utilise déjà cache: 'no-store', mais on s'assure côté navigateur.
       const o = await OrderService.getById(id);
       if (!o) {
-        result.innerHTML = `<div class="order-error">Aucune commande trouvée avec le numéro <strong>${id}</strong>. Vérifiez votre numéro ou contactez-nous sur WhatsApp.</div>`;
+        result.innerHTML = `<div class="order-error" style="text-align:center;padding:2.5rem 1.5rem;">
+          <div style="font-size:2rem;margin-bottom:0.6rem;">⚠</div>
+          <h3 style="font-family:var(--serif);margin-bottom:0.5rem;color:var(--ivory);">Aucune commande trouvée</h3>
+          <p style="color:var(--muted);margin-bottom:1.2rem;">Aucune commande trouvée avec la référence <strong style="color:var(--gold);font-family:Menlo,monospace;">${id}</strong>.</p>
+          <p style="color:var(--muted);font-size:0.88rem;">Vérifiez votre numéro ou contactez-nous sur WhatsApp.</p>
+          <a href="https://wa.me/2250748738671" target="_blank" style="display:inline-block;margin-top:1rem;color:var(--gold);">Nous contacter →</a>
+        </div>`;
+        actionsBox.style.display = 'none';
+        currentOrderId = null;
         return;
       }
+      currentOrderId = id;
+      actionsBox.style.display = 'block';
       renderOrder(o);
     } catch (e) {
-      console.error(e);
+      console.error('[Suivi]', e);
       result.innerHTML = `<div class="order-error">Erreur de connexion : ${e.message}</div>`;
     }
   }
@@ -365,9 +410,23 @@
     e.preventDefault();
     const id = idInput.value.trim().toUpperCase();
     if (!id) return;
-    // Met à jour l'URL pour permettre de partager le lien
     history.replaceState(null, '', '?id=' + encodeURIComponent(id));
     lookup(id);
+  });
+
+  // === Bouton Rafraîchir : relit Supabase, ne dépend pas du cache ===
+  refreshBtn.addEventListener('click', async () => {
+    if (!currentOrderId) return;
+    refreshSpin.style.display = 'inline-block';
+    refreshText.textContent = 'Rafraîchissement…';
+    refreshBtn.disabled = true;
+    try {
+      await lookup(currentOrderId, { silent: true });
+    } finally {
+      refreshSpin.style.display = 'none';
+      refreshText.textContent = '↻ Rafraîchir le suivi';
+      refreshBtn.disabled = false;
+    }
   });
 
   // Si l'URL contient ?id=XXX, charge automatiquement
