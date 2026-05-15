@@ -293,24 +293,28 @@
 
   /* ============================================================
      SECTION 1 — NOUVEAU PRODUIT (workflow Shopify-like)
+     ----------------------------------------------------------
+     Catégories lues depuis HBT_CATEGORIES (source unique de vérité
+     dans media-manifest.js). N'importe quelle nouvelle catégorie
+     ajoutée là apparaît auto ici, sans modifier admin-extras.js.
      ============================================================ */
-  const CATEGORIES = [
-    { value: 'portes',    label: 'Portes' },
-    { value: 'salons',    label: 'Salons' },
-    { value: 'tables',    label: 'Tables' },
-    { value: 'chaises',   label: 'Chaises' },
-    { value: 'lits',      label: 'Lits' },
-    { value: 'armoires',  label: 'Armoires' },
-    { value: 'cuisines',  label: 'Cuisines' },
-    { value: 'meublestv', label: 'Meubles TV' },
-    { value: 'bureaux',   label: 'Bureaux' },
-    { value: 'exterieur', label: 'Extérieur (Teck)' },
-    { value: 'serrures',  label: 'Serrures & accessoires' },
-    { value: 'mobilier',  label: 'Galerie : Mobilier (vue d\'ensemble)' },
-    { value: 'atelier',   label: 'Galerie : Atelier' },
-    { value: 'collections', label: 'Galerie : Collections' },
-    { value: 'videos',    label: 'Galerie : Vidéos' }
-  ];
+  function categoriesForAdmin() {
+    const all = (window.HBT_CATEGORIES || []);
+    const produits  = all.filter(c => c.type === 'produit');
+    const galeries  = all.filter(c => c.type === 'galerie');
+    const others    = all.filter(c => c.type !== 'produit' && c.type !== 'galerie');
+    // Structure du select : produits d'abord, puis galeries en option group
+    return { produits: produits, galeries: galeries, others: others };
+  }
+  // Liste plate utilisée par les <option> (avec étiquettes group préfixées si galerie)
+  function CATEGORIES_LIST() {
+    const g = categoriesForAdmin();
+    return [
+      ...g.produits.map(c => ({ value: c.slug, label: c.label })),
+      ...g.galeries.map(c => ({ value: c.slug, label: 'Galerie : ' + c.label })),
+      ...g.others.map(c => ({ value: c.slug, label: c.label }))
+    ];
+  }
 
   function newProductHTML() {
     return `
@@ -325,7 +329,7 @@
         <div>
           <label>Catégorie *</label>
           <select id="np-category" required>
-            ${CATEGORIES.map(c => `<option value="${c.value}">${c.label}</option>`).join('')}
+            ${CATEGORIES_LIST().map(c => `<option value="${c.value}">${c.label}</option>`).join('')}
           </select>
         </div>
         <div>
@@ -394,23 +398,18 @@
     const submitBtn = $('#np-submit');
     const dbg   = (key) => $('[data-debug="' + key + '"]', $('#np-debug'));
 
-    const SECTION_MAP = {
-      portes:      'boutique (Portes) + galerie (Portes)',
-      serrures:    'boutique (Serrures & accessoires)',
-      salons:      'boutique (Salons) + accueil (sélection)',
-      tables:      'boutique (Tables) + accueil (sélection)',
-      chaises:     'boutique (Chaises)',
-      lits:        'boutique (Lits)',
-      armoires:    'boutique (Armoires)',
-      cuisines:    'boutique (Cuisines)',
-      meublestv:   'boutique (Meubles TV)',
-      bureaux:     'boutique (Bureaux)',
-      exterieur:   'boutique (Extérieur)',
-      mobilier:    'galerie (Mobilier)',
-      atelier:     'galerie (Atelier)',
-      collections: 'galerie (Collections)',
-      videos:      'galerie (Vidéos)'
-    };
+    /* Section d'affichage dynamique selon le type de catégorie */
+    function sectionFor(catSlug) {
+      const info = (typeof window.HBT_categoryInfo === 'function')
+                    ? window.HBT_categoryInfo(catSlug) : null;
+      if (!info) return '—';
+      if (info.type === 'produit') {
+        return 'boutique (' + info.label + ')' +
+               (info._auto ? '  ← nouvelle catégorie auto-détectée' : '');
+      }
+      if (info.type === 'galerie') return 'galerie (' + info.label + ')';
+      return info.label;
+    }
 
     let pendingFile = null;
     let pendingPreview = null;
@@ -432,7 +431,7 @@
       dbg('publicId').textContent = meta.publicId;
       dbg('folder').textContent = meta.folder;
       dbg('tags').textContent = meta.tags.join(', ');
-      dbg('section').textContent = SECTION_MAP[cat] || '—';
+      dbg('section').textContent = sectionFor(cat);
       if (!monoI.value) monoI.value = (name.charAt(0) || '').toUpperCase();
     }
     nameI.addEventListener('input', updateDebug);

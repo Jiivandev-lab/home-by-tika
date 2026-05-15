@@ -44,19 +44,9 @@
   <section class="section">
     <div class="container">
 
-      <div class="filters">
+      <!-- Filtres générés dynamiquement depuis HBT_CATEGORIES (media-manifest.js) -->
+      <div class="filters" id="shop-filters">
         <button class="filter-btn active" data-filter="all">Tout</button>
-        <button class="filter-btn" data-filter="salons">Salons</button>
-        <button class="filter-btn" data-filter="tables">Tables</button>
-        <button class="filter-btn" data-filter="chaises">Chaises</button>
-        <button class="filter-btn" data-filter="lits">Lits</button>
-        <button class="filter-btn" data-filter="armoires">Armoires</button>
-        <button class="filter-btn" data-filter="cuisines">Cuisines</button>
-        <button class="filter-btn" data-filter="meublestv">Meubles TV</button>
-        <button class="filter-btn" data-filter="bureaux">Bureaux</button>
-        <button class="filter-btn" data-filter="exterieur">Extérieur (Teck)</button>
-        <button class="filter-btn" data-filter="portes">Portes</button>
-        <button class="filter-btn" data-filter="serrures" data-i18n="shop.filter.serrures">Serrures &amp; accessoires</button>
       </div>
 
       <div class="product-grid" id="shop-grid"></div>
@@ -129,56 +119,64 @@
      ==================================================================== -->
 <script>
 (function () {
-  // Mapping clé du bouton (data-filter) → tag(s) Cloudinary
-  const FILTER_TAGS = {
-    all:       ['hbt_salons','hbt_tables','hbt_chaises','hbt_lits',
-                'hbt_armoires','hbt_cuisines','hbt_meublestv','hbt_bureaux',
-                'hbt_exterieur','hbt_portes','hbt_serrures'],
-    salons:    ['hbt_salons'],
-    tables:    ['hbt_tables'],
-    chaises:   ['hbt_chaises'],
-    lits:      ['hbt_lits'],
-    armoires:  ['hbt_armoires'],
-    cuisines:  ['hbt_cuisines'],
-    meublestv: ['hbt_meublestv'],
-    bureaux:   ['hbt_bureaux'],
-    exterieur: ['hbt_exterieur'],
-    portes:    ['hbt_portes'],
-    serrures:  ['hbt_serrures']
-  };
+  /* ============================================================
+     BOUTIQUE — Catégories 100% dynamiques depuis HBT_CATEGORIES
+     ----------------------------------------------------------
+     • Boutons filtre générés au runtime
+     • Source de vérité unique : window.HBT_CATEGORIES (media-manifest.js)
+     • Ajouter une catégorie là = bouton qui apparaît auto ici
+     • Lecture : Supabase products d'abord, manifeste ensuite, Cloudinary tag en fallback
+     ============================================================ */
 
-  const CATEGORY_LABELS = {
-    salons: 'Salons', tables: 'Tables', chaises: 'Chaises', lits: 'Lits',
-    armoires: 'Armoires', cuisines: 'Cuisines', meublestv: 'Meubles TV',
-    bureaux: 'Bureaux', exterieur: 'Extérieur', portes: 'Portes',
-    serrures: 'Serrures'
-  };
+  const grid       = document.getElementById('shop-grid');
+  const filtersBox = document.getElementById('shop-filters');
+  if (!grid || !filtersBox) return;
 
-  const grid = document.getElementById('shop-grid');
-  if (!grid) return;
+  // Catégories produit (type === 'produit') + sécurité si HBT_CATEGORIES pas encore chargé
+  const ALL_PRODUCT_CATS = ((window.HBT_CATEGORIES || []).filter(c => c.type === 'produit'));
+  const ALL_KEYS = ALL_PRODUCT_CATS.map(c => c.slug);
 
-  // Catégories couvertes par "Tout"
-  const ALL_KEYS = ['salons','tables','chaises','lits','armoires','cuisines',
-                    'meublestv','bureaux','exterieur','portes','serrures'];
+  // Mapping slug → label affichable
+  const CATEGORY_LABELS = ALL_PRODUCT_CATS.reduce((m, c) => { m[c.slug] = c.label; return m; }, {});
+
+  // Construit les boutons filtre dynamiquement (après "Tout" déjà présent)
+  ALL_PRODUCT_CATS.forEach(c => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'filter-btn';
+    btn.dataset.filter = c.slug;
+    btn.textContent = c.label;
+    filtersBox.appendChild(btn);
+  });
 
   function escapeHtml(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;')
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
+  // Renvoie le label d'une catégorie (HBT_CATEGORIES, sinon le slug capitalisé)
+  function catLabel(slug) {
+    if (CATEGORY_LABELS[slug]) return CATEGORY_LABELS[slug];
+    const info = (typeof window.HBT_categoryInfo === 'function') ? window.HBT_categoryInfo(slug) : null;
+    return (info && info.label) || slug;
+  }
 
   function cardHTML(item) {
-    const name  = escapeHtml(item.name);
-    const desc  = escapeHtml(item.desc);
-    const price = escapeHtml(item.price);
-    const cat   = escapeHtml(CATEGORY_LABELS[item.category] || item.category);
-    const wood  = escapeHtml(item.wood);
+    const name      = escapeHtml(item.name);
+    const desc      = escapeHtml(item.desc);
+    const price     = escapeHtml(item.price);
+    const cat       = escapeHtml(catLabel(item.category));
+    const wood      = escapeHtml(item.wood);
+    const monogram  = escapeHtml(item.monogram || (item.name ? item.name.charAt(0).toUpperCase() : '·'));
+
+    // onerror → placeholder SVG élégant via HBT_handleImageError
+    const onerr = "HBT_handleImageError(this, '" + name.replace(/'/g, "\\'") + "', {monogram:'" + monogram + "'})";
 
     return ''
       + '<article class="product-card" data-type="' + item.category + '">'
       +   '<div class="product-image has-photo">'
       +     '<img src="' + item.url + '" alt="' + name + '" class="product-photo" loading="lazy" decoding="async"'
-      +     ' onerror="this.style.display=\'none\'; this.parentNode.classList.add(\'placeholder\');">'
+      +     ' onerror="' + onerr + '">'
       +     (wood ? '<span class="wood-tag">' + wood + '</span>' : (cat ? '<span class="wood-tag">' + cat + '</span>' : ''))
       +   '</div>'
       +   '<div class="product-body">'
@@ -193,37 +191,56 @@
       + '</article>';
   }
 
-  function showFilter(key) {
-    console.group('[Boutique] Filtre depuis manifeste');
+  /* showFilter — version ASYNC : manifeste pré-rempli (instant) +
+     enrichissement depuis Cloudinary par tag (auto-découverte) */
+  async function showFilter(key) {
+    console.group('[Boutique] Filtre — mode hybride');
     console.log('Catégorie sélectionnée :', key);
 
-    // Lit directement depuis media-manifest.js (window.HBT_mediaList)
-    const keys  = (key === 'all') ? ALL_KEYS : [key];
-    console.log('Catégories lues       :', keys);
+    const keys = (key === 'all') ? ALL_KEYS : [key];
 
+    // 1) AFFICHAGE INSTANTANÉ depuis le manifeste (synchrone)
     let items = [];
     keys.forEach(k => {
       const list = (typeof window.HBT_mediaList === 'function') ? window.HBT_mediaList(k) : [];
-      console.log('  ' + k + ' →', list.length, 'média(s)');
+      console.log('  manifeste ' + k + ' →', list.length, 'média(s)');
       items = items.concat(list);
     });
 
-    console.log('Total médias affichés :', items.length);
-    console.groupEnd();
-
-    if (items.length === 0) {
+    if (items.length > 0) {
+      grid.innerHTML = items.map(cardHTML).join('');
+    } else {
       grid.innerHTML =
-        '<div class="empty-state" style="grid-column:1/-1; text-align:center; padding:4rem 2rem; background:var(--bg-soft); border:1px dashed var(--line); border-radius:4px;">'
-        + '<h3 style="margin-bottom:0.7rem;">Aucun produit disponible dans cette catégorie.</h3>'
-        + '<p style="color:var(--muted); font-size:0.95rem;">Les médias apparaîtront dès que vous les aurez référencés dans <code>media-manifest.js</code>.</p>'
+        '<div class="empty-state" style="grid-column:1/-1; text-align:center; padding:3rem 2rem; background:var(--bg-soft); border:1px dashed var(--line); border-radius:4px;">'
+        + '<p style="color:var(--muted);">Chargement des produits…</p>'
         + '</div>';
-      return;
     }
 
-    grid.innerHTML = items.map(cardHTML).join('');
+    // 2) ENRICHISSEMENT ASYNC via Cloudinary (Netlify Function)
+    if (typeof window.HBT_mediaListAsync === 'function') {
+      try {
+        const allLists = await Promise.all(keys.map(k => window.HBT_mediaListAsync(k)));
+        const enriched = [].concat.apply([], allLists);
+        console.log('  enrichi (manifeste + Cloudinary) :', enriched.length, 'média(s)');
+
+        if (enriched.length === 0) {
+          grid.innerHTML =
+            '<div class="empty-state" style="grid-column:1/-1; text-align:center; padding:4rem 2rem; background:var(--bg-soft); border:1px dashed var(--line); border-radius:4px;">'
+            + '<h3 style="margin-bottom:0.7rem;">Aucun produit dans cette catégorie.</h3>'
+            + '<p style="color:var(--muted); font-size:0.95rem;">Ajoutez un produit depuis l\'<a href="admin.html">espace de gestion</a>.</p>'
+            + '</div>';
+        } else if (enriched.length !== items.length) {
+          grid.innerHTML = enriched.map(cardHTML).join('');
+        }
+      } catch (e) {
+        console.warn('  enrichissement Cloudinary échoué :', e.message);
+      }
+    }
+
+    console.groupEnd();
   }
 
-  // Intercepte les clics sur les boutons filtre (override du comportement statique)
+  // Intercepte les clics sur les boutons filtre
   document.addEventListener('click', function (e) {
     const btn = e.target.closest('.filter-btn');
     if (!btn) return;
@@ -232,7 +249,7 @@
     showFilter(btn.dataset.filter);
   });
 
-  // Lancement initial — passe après le rendu statique de script.js
+  // Lancement initial
   function init() { showFilter('all'); }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
