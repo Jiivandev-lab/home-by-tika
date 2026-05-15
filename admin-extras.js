@@ -614,24 +614,26 @@
      SECTION 2 — GESTION DES COMMANDES
      (liste Supabase + recherche + filtre + update statut inline)
      ============================================================ */
-  // 8 statuts de fabrication HOME BY TIKA + Annulée. Ordre = progression.
-  // Rétrocompat des anciens keys (finishing, ready) via LEGACY_STATUS_LABELS.
+  // 10 statuts complets HOME BY TIKA + Annulée. Ordre = progression réelle.
   const ORDER_STATUSES_ADMIN = [
     { key: 'received',           label: 'Commande reçue',      color: '#8a7860' },
-    { key: 'confirmed',          label: 'Validation en cours', color: '#8a5a2a' },
+    { key: 'payment_confirmed',  label: 'Paiement confirmé',   color: '#7a6042' },
+    { key: 'design_approved',    label: 'Design validé',       color: '#8a5a2a' },
+    { key: 'wood_prep',          label: 'Bois / matériel préparé', color: '#a06b2a' },
     { key: 'preparing',          label: 'En fabrication',      color: '#b48249' },
-    { key: 'wood_prep',          label: 'Bois en préparation', color: '#a06b2a' },
-    { key: 'varnishing',         label: 'Vernissage',          color: '#c89968' },
-    { key: 'delivery_scheduled', label: 'Livraison programmée',color: '#d4a766' },
-    { key: 'shipping',           label: 'En cours de livraison', color: '#e0b878' },
+    { key: 'varnishing',         label: 'Finition / vernissage', color: '#c89968' },
+    { key: 'quality_check',      label: 'Contrôle qualité',    color: '#d4a766' },
+    { key: 'delivery_scheduled', label: 'Livraison programmée',color: '#dab07b' },
+    { key: 'shipping',           label: 'En livraison',        color: '#e0b878' },
     { key: 'delivered',          label: 'Livrée',              color: '#2e8a56' },
     { key: 'cancelled',          label: 'Annulée',             color: '#c45b5b' }
   ];
 
-  // Anciennes valeurs encore possibles dans la DB → labels lisibles
+  // Statuts hérités (anciennes commandes) → mappage transparent
   const LEGACY_STATUS_LABELS = {
-    finishing: 'Finition',
-    ready:     'Produit prêt'
+    finishing: 'Finition (ancien)',
+    ready:     'Produit prêt (ancien)',
+    confirmed: 'Validation (ancien)'
   };
 
   function statusInfo(key) {
@@ -827,47 +829,183 @@
   }
 
   function showOrderDetails(o) {
-    // Petit modal léger
     const itemsHTML = (o.items || []).length
       ? o.items.map(it => '<li>' + (it.qty || 1) + ' × ' + escapeHtml(it.name || it.id) + ' — ' + fcfa(it.price * (it.qty || 1)) + '</li>').join('')
       : '<li style="color:var(--muted);">Aucun article</li>';
     const historyHTML = (o.history || []).map(h =>
-      '<li>' + fmt(h.at) + ' — <strong>' + escapeHtml(h.status) + '</strong>' + (h.note ? ' — ' + escapeHtml(h.note) : '') + '</li>'
+      '<li>' + fmt(h.at) + ' — <strong>' + escapeHtml(statusInfo(h.status).label) + '</strong>' + (h.note ? ' — ' + escapeHtml(h.note) : '') + '</li>'
     ).join('');
 
+    const paid = !!o.payment_confirmed;
+    const amountPaid = Number(o.amount_paid) || 0;
+    const remaining = Math.max(0, (Number(o.total) || 0) - amountPaid);
+
     const modal = document.createElement('div');
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99998;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px);';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99998;display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto;backdrop-filter:blur(4px);';
     modal.innerHTML = `
-      <div style="background:var(--bg-card,#1a1820);border:1px solid var(--gold,#c89968);padding:1.8rem;border-radius:4px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto;font-family:Inter,sans-serif;color:var(--ivory,#f5ede0);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <div class="hbt-ord-modal-inner" style="background:var(--bg-card,#1a1820);border:1px solid var(--gold,#c89968);padding:1.8rem;border-radius:4px;max-width:720px;width:100%;font-family:Inter,sans-serif;color:var(--ivory,#f5ede0);margin:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;gap:0.6rem;flex-wrap:wrap;">
           <h3 style="color:var(--gold,#c89968);font-family:'Playfair Display',serif;margin:0;font-size:1.4rem;">${escapeHtml(o.id)}</h3>
-          <button type="button" id="ord-modal-close" style="background:transparent;border:1px solid var(--line,rgba(200,153,104,0.18));color:var(--ivory,#f5ede0);padding:0.4rem 0.8rem;cursor:pointer;border-radius:2px;">Fermer</button>
+          <span style="display:inline-block;padding:0.3rem 0.8rem;border-radius:999px;font-size:0.75rem;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;background:${paid ? 'rgba(46,138,86,0.2)' : 'rgba(196,91,91,0.18)'};color:${paid ? '#5cc488' : '#e88c8c'};border:1px solid ${paid ? '#2e8a56' : '#c45b5b'};">
+            ${paid ? '✓ Payé' : 'Non payé'}
+          </span>
+          <button type="button" class="ord-modal-close" style="background:transparent;border:1px solid var(--line,rgba(200,153,104,0.18));color:var(--ivory,#f5ede0);padding:0.4rem 0.8rem;cursor:pointer;border-radius:2px;">Fermer</button>
         </div>
-        <p style="font-size:0.85rem;color:var(--muted,#8a7e6a);margin-bottom:1.4rem;">Passée le ${fmt(o.created_at)}</p>
+        <p style="font-size:0.85rem;color:var(--muted,#8a7e6a);margin-bottom:1.4rem;">
+          Passée le ${fmt(o.created_at)} · Statut : <strong style="color:${statusInfo(o.status).color};">${escapeHtml(statusInfo(o.status).label)}</strong>
+        </p>
+
+        <!-- INFOS CLIENT -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem 1.4rem;font-size:0.9rem;margin-bottom:1.4rem;">
-          <div><strong style="color:var(--gold,#c89968);">Client</strong><br>${escapeHtml(o.customer_name || '—')}</div>
-          <div><strong style="color:var(--gold,#c89968);">Téléphone</strong><br>${escapeHtml(o.phone || '—')}</div>
-          <div style="grid-column:1/-1;"><strong style="color:var(--gold,#c89968);">Adresse</strong><br>${escapeHtml(o.address || '—')}</div>
-          ${o.notes ? `<div style="grid-column:1/-1;"><strong style="color:var(--gold,#c89968);">Note</strong><br>${escapeHtml(o.notes)}</div>` : ''}
-          <div><strong style="color:var(--gold,#c89968);">Total</strong><br>${o.total ? fcfa(o.total) : '—'}</div>
-          <div><strong style="color:var(--gold,#c89968);">Statut</strong><br>${escapeHtml(o.status)}</div>
+          <div><strong style="color:var(--gold,#c89968);font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;">Client</strong><br>${escapeHtml(o.customer_name || '—')}</div>
+          <div><strong style="color:var(--gold,#c89968);font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;">Téléphone</strong><br>${escapeHtml(o.phone || '—')}</div>
+          <div style="grid-column:1/-1;"><strong style="color:var(--gold,#c89968);font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;">Adresse</strong><br>${escapeHtml(o.address || '—')}</div>
         </div>
+
+        <!-- PAIEMENT -->
+        <div style="background:rgba(200,153,104,0.06);border-left:3px solid var(--gold,#c89968);padding:1rem 1.2rem;margin-bottom:1.4rem;">
+          <strong style="color:var(--gold,#c89968);font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;display:block;margin-bottom:0.6rem;">Paiement</strong>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.8rem;font-size:0.88rem;">
+            <div><span style="color:var(--muted);">Total commande</span><br><strong>${o.total ? fcfa(o.total) : '—'}</strong></div>
+            <div><span style="color:var(--muted);">Montant payé</span><br><strong style="color:${amountPaid ? '#5cc488' : 'var(--muted)'};">${amountPaid ? fcfa(amountPaid) : '0 FCFA'}</strong></div>
+            <div><span style="color:var(--muted);">Solde restant</span><br><strong style="color:${remaining ? '#e88c8c' : '#5cc488'};">${fcfa(remaining)}</strong></div>
+          </div>
+          <div style="margin-top:0.8rem;font-size:0.85rem;color:var(--ivory-dim,#d4c8b3);">
+            Mode de paiement : <strong>${escapeHtml(o.payment_method || '—')}</strong>
+          </div>
+        </div>
+
+        <!-- ARTICLES -->
         <div style="margin-bottom:1.4rem;">
-          <strong style="color:var(--gold,#c89968);font-size:0.75rem;letter-spacing:1.5px;text-transform:uppercase;">Articles</strong>
+          <strong style="color:var(--gold,#c89968);font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;">Articles</strong>
           <ul style="margin:0.4rem 0 0 1.2rem;font-size:0.9rem;">${itemsHTML}</ul>
         </div>
+
+        <!-- MESSAGE CLIENT -->
         <div style="margin-bottom:1.4rem;">
-          <strong style="color:var(--gold,#c89968);font-size:0.75rem;letter-spacing:1.5px;text-transform:uppercase;">Historique</strong>
+          <label style="color:var(--gold,#c89968);font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;display:block;margin-bottom:0.4rem;">Message au client (visible sur la page suivi)</label>
+          <textarea id="ord-message" rows="3" style="width:100%;background:var(--bg-soft,#15131a);border:1px solid var(--line,rgba(200,153,104,0.18));color:var(--ivory,#f5ede0);padding:0.7rem 0.9rem;font-family:Inter,sans-serif;font-size:0.92rem;border-radius:2px;box-sizing:border-box;resize:vertical;" placeholder="Ex: Votre commande est en finition, livraison prévue le 18 mai…">${escapeHtml(o.message_to_client || '')}</textarea>
+          <button type="button" id="ord-save-msg" style="margin-top:0.5rem;background:transparent;border:1px solid var(--gold,#c89968);color:var(--gold,#c89968);padding:0.5rem 1rem;font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;border-radius:2px;">Enregistrer le message</button>
+        </div>
+
+        <!-- HISTORIQUE -->
+        <div style="margin-bottom:1.4rem;">
+          <strong style="color:var(--gold,#c89968);font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;">Historique</strong>
           <ul style="margin:0.4rem 0 0 1.2rem;font-size:0.85rem;color:var(--ivory-dim,#d4c8b3);">${historyHTML || '<li>—</li>'}</ul>
         </div>
-        <div style="text-align:center;padding-top:0.8rem;border-top:1px solid var(--line,rgba(200,153,104,0.18));">
-          <a href="suivi.html?id=${encodeURIComponent(o.id)}" target="_blank" style="color:var(--gold,#c89968);font-size:0.85rem;">Voir la page de suivi client →</a>
+
+        <!-- ACTIONS -->
+        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;padding-top:1rem;border-top:1px solid var(--line,rgba(200,153,104,0.18));">
+          <button type="button" id="ord-validate-payment" ${paid ? 'disabled style="opacity:0.55;cursor:not-allowed;"' : ''} class="hbt-btn-primary" style="padding:0.7rem 1.1rem;font-size:0.72rem;background:${paid ? '#5cc488' : '#2e8a56'};border:none;">${paid ? '✓ Paiement confirmé' : 'Valider le paiement'}</button>
+          <button type="button" id="ord-generate-invoice" class="hbt-btn-primary" style="padding:0.7rem 1.1rem;font-size:0.72rem;" ${paid ? '' : 'disabled title="Confirmer le paiement avant" style="opacity:0.5;cursor:not-allowed;padding:0.7rem 1.1rem;font-size:0.72rem;"'}>Générer facture PDF</button>
+          ${o.invoice_id ? `<button type="button" id="ord-print-invoice" style="padding:0.7rem 1.1rem;font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;border:1px solid var(--gold,#c89968);background:transparent;color:var(--gold,#c89968);cursor:pointer;border-radius:2px;">Imprimer facture</button>` : ''}
+          <a href="suivi.html?id=${encodeURIComponent(o.id)}" target="_blank" style="margin-left:auto;color:var(--gold,#c89968);font-size:0.85rem;align-self:center;">Voir suivi client →</a>
         </div>
+        ${o.invoice_id ? '<div style="margin-top:0.7rem;font-size:0.8rem;color:var(--muted);">Facture associée : <strong style="color:var(--gold);font-family:Menlo,monospace;">' + escapeHtml(o.invoice_id) + '</strong></div>' : ''}
       </div>
     `;
     document.body.appendChild(modal);
-    $('#ord-modal-close', modal).addEventListener('click', () => modal.remove());
-    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+    const closeModal = () => modal.remove();
+    modal.querySelectorAll('.ord-modal-close').forEach(b => b.addEventListener('click', closeModal));
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+    // === Sauvegarde message client ===
+    $('#ord-save-msg', modal).addEventListener('click', async () => {
+      const msg = $('#ord-message', modal).value;
+      try {
+        await window.OrderService.update
+          ? await window.OrderService.update(o.id, { message_to_client: msg })
+          : (await fetch(window.HBT_CONFIG.supabase.url + '/rest/v1/orders?id=eq.' + encodeURIComponent(o.id), {
+              method: 'PATCH',
+              headers: {
+                apikey: window.HBT_CONFIG.supabase.anonKey,
+                Authorization: 'Bearer ' + window.HBT_CONFIG.supabase.anonKey,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ message_to_client: msg, updated_at: new Date().toISOString() })
+            }));
+        o.message_to_client = msg;
+        toast('✓ Message enregistré', '#2e8a56');
+      } catch (err) {
+        toast('❌ ' + err.message, '#c45b5b');
+      }
+    });
+
+    // === Valider paiement ===
+    $('#ord-validate-payment', modal).addEventListener('click', async () => {
+      if (paid) return;
+      const amount = prompt('Montant payé en FCFA (laisser vide = total) :', (o.total || ''));
+      if (amount === null) return;
+      const method = prompt('Mode de paiement (Mobile Money / Virement / Espèces / Carte) :', o.payment_method || 'Mobile Money');
+      if (method === null) return;
+      try {
+        const patch = {
+          payment_confirmed: true,
+          amount_paid: amount === '' ? (o.total || 0) : Number(amount),
+          payment_method: method,
+          updated_at: new Date().toISOString()
+        };
+        await fetch(window.HBT_CONFIG.supabase.url + '/rest/v1/orders?id=eq.' + encodeURIComponent(o.id), {
+          method: 'PATCH',
+          headers: {
+            apikey: window.HBT_CONFIG.supabase.anonKey,
+            Authorization: 'Bearer ' + window.HBT_CONFIG.supabase.anonKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(patch)
+        });
+        // Update local
+        Object.assign(o, patch);
+        // Aussi passer au statut "payment_confirmed" si pas déjà plus avancé
+        const idx = ORDER_STATUSES_ADMIN.findIndex(s => s.key === o.status);
+        const idxPaid = ORDER_STATUSES_ADMIN.findIndex(s => s.key === 'payment_confirmed');
+        if (idx < idxPaid) {
+          await window.OrderService.updateStatus(o.id, 'payment_confirmed', 'Paiement confirmé');
+          o.status = 'payment_confirmed';
+        }
+        toast('✓ Paiement confirmé', '#2e8a56');
+        closeModal();
+        loadOrders();
+      } catch (err) {
+        toast('❌ ' + err.message, '#c45b5b');
+      }
+    });
+
+    // === Générer facture PDF (passe la commande à invoice-pdf.js) ===
+    $('#ord-generate-invoice', modal).addEventListener('click', () => {
+      if (!paid) {
+        toast('⚠ Valider d\'abord le paiement', '#c89968');
+        return;
+      }
+      closeModal();
+      // Active l'onglet Devis & Factures + précharge la commande
+      const tabBtn = document.querySelector('.hbt-extras-tab[data-tab="docs"]');
+      if (tabBtn) tabBtn.click();
+      // Attendre que la section soit montée puis remplir
+      setTimeout(() => {
+        const sel = document.querySelector('#doc-order');
+        const typeSel = document.querySelector('#doc-type');
+        if (typeSel) { typeSel.value = 'invoice'; typeSel.dispatchEvent(new Event('change')); }
+        if (sel) {
+          // Assure que l'option existe
+          if (!sel.querySelector('option[value="' + o.id + '"]')) {
+            const opt = document.createElement('option');
+            opt.value = o.id;
+            opt.textContent = o.id + ' — ' + (o.customer_name || '?');
+            sel.appendChild(opt);
+          }
+          sel.value = o.id;
+          sel.dispatchEvent(new Event('change'));
+        }
+        toast('Facture préparée — modifiez puis Téléchargez', '#c89968');
+      }, 400);
+    });
+
+    // === Imprimer facture (si existe déjà) ===
+    const printBtn = $('#ord-print-invoice', modal);
+    if (printBtn) printBtn.addEventListener('click', () => {
+      window.open('suivi.html?id=' + encodeURIComponent(o.id) + '#facture', '_blank');
+    });
   }
 
   /* ============================================================
