@@ -5,7 +5,7 @@
    produits historiques. Le site lit aussi Cloudinary par tag
    (via Netlify Function) pour les médias ajoutés depuis l'admin
    sans avoir à modifier ce fichier.
- 
+
    ARCHITECTURE :
    --------------
      1) HBT_MEDIA          → tableaux pré-remplis (fallback fiable)
@@ -15,16 +15,16 @@
                               Cloudinary par tag (auto-découverte)
      5) HBT_getPlaceholderUrl() → SVG data URL élégant si image 404
      6) HBT_handleImageError() → bascule auto vers placeholder
- 
+
    RÉTRO-COMPATIBILITÉ :
    ---------------------
    • Les anciens produits hardcodés du CATALOG (script.js) restent affichés
    • Les anciens public_id Cloudinary continuent de marcher
    • Les anciennes images déjà visibles ne sont pas touchées
    ========================================================= */
- 
+
 window.HBT_MEDIA = {
- 
+
   /* ============================================================
      GALERIE — médias non-produits (atelier, collections, vidéos)
      ============================================================ */
@@ -40,7 +40,7 @@ window.HBT_MEDIA = {
   videos: [
     // Vidéos de l'atelier / fabrication : { id: 'fabrication-porte', name: 'Fabrication d\'une porte', video: true }
   ],
- 
+
   /* ============================================================
      BOUTIQUE — produits par catégorie
      Pré-rempli avec les 25 produits historiques. Les images sont
@@ -115,7 +115,7 @@ window.HBT_MEDIA = {
     { id: 'por-04', name: 'Porte Forteresse', price: '1 180 000 FCFA', wood: 'Iroko',
       desc: 'Porte d\'entrée sécurisée en Iroko avec renforts métalliques et serrure 5 points.', monogram: 'F', label: 'Sécurisée' }
   ],
- 
+
   /* ============================================================
      SITE — hero, atelier story image
      ============================================================ */
@@ -124,61 +124,134 @@ window.HBT_MEDIA = {
     'atelier':  null    // ex. 'atelier-photo-1'
   }
 };
- 
+
+/* =========================================================
+   HBT_CATEGORIES — Source de vérité unique des catégories
+   ----------------------------------------------------------
+   Liste utilisée par l'admin (formulaire), la boutique (filtres),
+   la galerie (onglets), et le moteur Cloudinary (dossiers + tags).
+
+   AJOUTER UNE CATÉGORIE = AJOUTER UNE LIGNE ICI.
+   Le système calcule auto :
+     • slug folder       (avec tirets)         → pots-de-fleurs
+     • slug tag          (avec underscores)    → pots_de_fleurs
+     • dossier Cloudinary                      → home-by-tika/produits/pots-de-fleurs
+     • tags Cloudinary  → hbt_product, hbt_pots_de_fleurs, hbt_category_pots_de_fleurs
+
+   Champ `type` :
+     • 'produit' → boutique + dossier home-by-tika/produits/<slug>
+     • 'galerie' → galerie  + dossier home-by-tika/<slug>
+     • 'site'    → image du site (hero, atelier) — non listé
+   ========================================================= */
+window.HBT_CATEGORIES = [
+  /* ===== Produits (boutique) ===== */
+  { slug: 'portes',         label: 'Portes',          type: 'produit' },
+  { slug: 'salons',         label: 'Salons',          type: 'produit' },
+  { slug: 'tables',         label: 'Tables',          type: 'produit' },
+  { slug: 'chaises',        label: 'Chaises',         type: 'produit' },
+  { slug: 'lits',           label: 'Lits',            type: 'produit' },
+  { slug: 'armoires',       label: 'Armoires',        type: 'produit' },
+  { slug: 'cuisines',       label: 'Cuisines',        type: 'produit' },
+  { slug: 'meublestv',      label: 'Meubles TV',      type: 'produit' },
+  { slug: 'bureaux',        label: 'Bureaux',         type: 'produit' },
+  { slug: 'exterieur',      label: 'Extérieur',       type: 'produit' },
+  { slug: 'serrures',       label: 'Serrures',        type: 'produit' },
+  { slug: 'decoration',     label: 'Décoration',      type: 'produit' },
+  { slug: 'pots-de-fleurs', label: 'Pots de fleurs',  type: 'produit' },
+  { slug: 'luminaires',     label: 'Luminaires',      type: 'produit' },
+  { slug: 'miroirs',        label: 'Miroirs',         type: 'produit' },
+  { slug: 'accessoires',    label: 'Accessoires',     type: 'produit' },
+  { slug: 'sur-mesure',     label: 'Sur mesure',      type: 'produit' },
+
+  /* ===== Galeries (non-produit) ===== */
+  { slug: 'mobilier',       label: 'Mobilier',        type: 'galerie' },
+  { slug: 'atelier',        label: 'Atelier',         type: 'galerie' },
+  { slug: 'collections',    label: 'Collections',     type: 'galerie' },
+  { slug: 'videos',         label: 'Vidéos',          type: 'galerie' }
+];
+
 /* =========================================================
    MAPPING catégorie → dossier Cloudinary + tag par défaut
    ========================================================= */
 (function () {
   const CLOUD = (window.HBT_CONFIG && window.HBT_CONFIG.cloudinary && window.HBT_CONFIG.cloudinary.cloudName) || 'dcj4xsp83';
- 
-  // Dossier Cloudinary par catégorie
-  const FOLDER_MAP = {
-    // Produits (boutique + galerie produits)
-    portes:      'home-by-tika/produits/portes',
-    serrures:    'home-by-tika/produits/serrures',
-    salons:      'home-by-tika/produits/salons',
-    tables:      'home-by-tika/produits/tables',
-    chaises:     'home-by-tika/produits/chaises',
-    lits:        'home-by-tika/produits/lits',
-    armoires:    'home-by-tika/produits/armoires',
-    cuisines:    'home-by-tika/produits/cuisines',
-    meublestv:   'home-by-tika/produits/meublestv',
-    bureaux:     'home-by-tika/produits/bureaux',
-    exterieur:   'home-by-tika/produits/exterieur',
- 
-    // Galeries non-produit
-    mobilier:    'home-by-tika/mobilier',
-    atelier:     'home-by-tika/atelier',
-    collections: 'home-by-tika/collections',
-    videos:      'home-by-tika/videos',
- 
-    // Site
-    site:        'home-by-tika/site'
-  };
- 
-  // Tag Cloudinary par défaut pour chaque catégorie (convention : hbt_<cat>)
-  const TAG_MAP = {
-    portes:      'hbt_portes',
-    serrures:    'hbt_serrures',
-    salons:      'hbt_salons',
-    tables:      'hbt_tables',
-    chaises:     'hbt_chaises',
-    lits:        'hbt_lits',
-    armoires:    'hbt_armoires',
-    cuisines:    'hbt_cuisines',
-    meublestv:   'hbt_meublestv',
-    bureaux:     'hbt_bureaux',
-    exterieur:   'hbt_exterieur',
-    mobilier:    'hbt_mobilier',
-    atelier:     'hbt_atelier',
-    collections: 'hbt_collections',
-    videos:      'hbt_videos'
-  };
- 
-  /* Expose les mappings pour usage externe (admin) */
+
+  /* ===== Helpers de slugification ===== */
+  /* folderSlug : minuscule + sans accents + hyphens (URL-safe)
+     "Pots de fleurs" → "pots-de-fleurs"   */
+  function folderSlug(text) {
+    return String(text || '')
+      .toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 60);
+  }
+  /* tagSlug : minuscule + sans accents + underscores (Cloudinary tag friendly)
+     "Pots de fleurs" → "pots_de_fleurs"   */
+  function tagSlug(text) {
+    return folderSlug(text).replace(/-/g, '_');
+  }
+  window.HBT_folderSlug = folderSlug;
+  window.HBT_tagSlug    = tagSlug;
+
+  /* Construit la définition d'une catégorie depuis n'importe quelle entrée
+     (slug, label, ou objet) — auto-découverte si pas dans HBT_CATEGORIES. */
+  function categoryInfo(input) {
+    if (!input) return null;
+    if (typeof input === 'object' && input.slug) return input;
+    const arr = window.HBT_CATEGORIES || [];
+    // Cherche par slug exact
+    let found = arr.find(c => c.slug === input);
+    if (found) return found;
+    // Cherche par label exact
+    found = arr.find(c => c.label === input);
+    if (found) return found;
+    // Cherche par slug normalisé (auto-découverte → catégorie inconnue traitée comme produit)
+    const slug = folderSlug(input);
+    found = arr.find(c => c.slug === slug);
+    if (found) return found;
+    // Catégorie totalement nouvelle → assume produit
+    return { slug: slug, label: String(input), type: 'produit', _auto: true };
+  }
+  window.HBT_categoryInfo = categoryInfo;
+
+  /* Dossier Cloudinary d'une catégorie */
+  function categoryFolder(input) {
+    const cat = categoryInfo(input);
+    if (!cat) return 'home-by-tika/' + folderSlug(input || '');
+    const root = 'home-by-tika';
+    if (cat.type === 'produit')  return root + '/produits/' + cat.slug;
+    if (cat.type === 'site')     return root + '/site';
+    return root + '/' + cat.slug;
+  }
+  window.HBT_categoryFolder = categoryFolder;
+
+  /* Tags Cloudinary d'une catégorie (3 tags universels) */
+  function categoryTags(input) {
+    const cat = categoryInfo(input);
+    const t = tagSlug(cat ? cat.slug : input);
+    return ['hbt_product', 'hbt_' + t, 'hbt_category_' + t];
+  }
+  window.HBT_categoryTags = categoryTags;
+
+  /* === Anciens FOLDER_MAP / TAG_MAP : générés DYNAMIQUEMENT depuis HBT_CATEGORIES ===
+     Rétrocompatibilité 100 % avec le code qui les consomme (script.js, admin-extras.js). */
+  const FOLDER_MAP = {};
+  const TAG_MAP    = {};
+  (window.HBT_CATEGORIES || []).forEach(c => {
+    FOLDER_MAP[c.slug] = categoryFolder(c);
+    TAG_MAP[c.slug]    = 'hbt_' + tagSlug(c.slug);
+  });
+  // Site (hors HBT_CATEGORIES)
+  FOLDER_MAP.site = 'home-by-tika/site';
+
+  /* Expose les mappings pour usage externe */
   window.HBT_FOLDER_MAP = FOLDER_MAP;
   window.HBT_TAG_MAP    = TAG_MAP;
- 
+
   /* =========================================================
      HBT_mediaUrl(category, id, opts)
      ----------------------------------------------------------
@@ -190,7 +263,9 @@ window.HBT_MEDIA = {
      ========================================================= */
   window.HBT_mediaUrl = function (category, id, opts) {
     opts = opts || {};
-    const folder = FOLDER_MAP[category] || ('home-by-tika/' + category);
+    // Résolution dynamique : FOLDER_MAP d'abord (rapide), puis categoryFolder() pour
+    // toute nouvelle catégorie pas encore enregistrée dans HBT_CATEGORIES.
+    const folder = FOLDER_MAP[category] || categoryFolder(category);
     const transforms = [];
     transforms.push('f_' + (opts.format || 'auto'));
     transforms.push('q_' + (opts.quality || 'auto'));
@@ -199,23 +274,23 @@ window.HBT_MEDIA = {
     if (opts.crop)    transforms.push('c_' + opts.crop);
     if (opts.gravity) transforms.push('g_' + opts.gravity);
     const resource = opts.video ? 'video' : 'image';
- 
+
     // Cloudinary accepte avec ou sans extension grâce à f_auto, mais
     // l'extension explicite évite l'ambiguïté côté CDN.
     let finalId = id;
     if (!/\.[a-z0-9]{2,5}$/i.test(id)) {
       finalId = id + (opts.video ? '.mp4' : '.jpg');
     }
- 
+
     const url = 'https://res.cloudinary.com/' + CLOUD + '/' + resource +
                 '/upload/' + transforms.join(',') + '/' + folder + '/' + finalId;
- 
+
     if (window.HBT_DEBUG_MEDIA) {
       console.log('[HBT_mediaUrl]', { category, id, folder, tag: TAG_MAP[category], finalId, url });
     }
     return url;
   };
- 
+
   /* =========================================================
      HBT_mediaList(category)   — VERSION SYNCHRONE
      ----------------------------------------------------------
@@ -249,7 +324,7 @@ window.HBT_MEDIA = {
       };
     });
   };
- 
+
   /* =========================================================
      HBT_mediaListAsync(category)   — VERSION ASYNCHRONE
      ----------------------------------------------------------
@@ -257,7 +332,7 @@ window.HBT_MEDIA = {
      par tag (auto-découverte). Permet d'ajouter un média
      depuis l'admin SANS modifier le manifeste — il apparaît
      automatiquement sur le site.
- 
+
      Fusion intelligente :
        • Manifeste = source de vérité pour prix / desc / wood
        • Cloudinary = source de vérité pour la liste réelle
@@ -266,7 +341,7 @@ window.HBT_MEDIA = {
   window.HBT_mediaListAsync = async function (category) {
     const manifestItems = window.HBT_mediaList(category);
     const tag = TAG_MAP[category];
- 
+
     // 0) PRODUITS SUPABASE (admin) — priorité après manifeste, avant Cloudinary tag
     let supaItems = [];
     if (window.ProductService && typeof window.ProductService.list === 'function') {
@@ -301,15 +376,15 @@ window.HBT_MEDIA = {
         }
       }
     }
- 
+
     if (!tag) {
-      // Catégorie inconnue → renvoie manifeste + Supabase
-      const merged = manifestItems.slice();
-      const seen = new Set(merged.map(m => m.id));
-      supaItems.forEach(s => { if (!seen.has(s.id)) merged.push(s); });
+      // Catégorie inconnue → Supabase d'abord (priorité produits admin)
+      const merged = supaItems.slice();
+      const seen = new Set(merged.map(s => s.id));
+      manifestItems.forEach(m => { if (!seen.has(m.id)) merged.push(m); });
       return merged;
     }
- 
+
     let cloudItems = [];
     try {
       const resourceType = (category === 'videos') ? 'video' : 'image';
@@ -349,21 +424,24 @@ window.HBT_MEDIA = {
         console.warn('[HBT_mediaListAsync] Erreur fetch Cloudinary, fallback manifeste :', e.message);
       }
     }
- 
-    // Fusion 3-niveaux : manifeste → Supabase products → Cloudinary tag
-    // Priorité : manifeste (rétro-compat) > Supabase (admin) > Cloudinary (auto-découverte)
-    const merged = manifestItems.slice();
-    const seenIds = new Set(manifestItems.map(function (m) { return m.id; }));
-    supaItems.forEach(function (s) {
-      if (!seenIds.has(s.id)) { merged.push(s); seenIds.add(s.id); }
+
+    // Fusion 3-niveaux ORDRE D'AFFICHAGE :
+    //   1) Supabase products en TÊTE (les plus récents ajoutés par l'admin)
+    //   2) Manifeste (les 23 produits historiques) en milieu
+    //   3) Cloudinary (auto-découverte par tag) en queue (cas rare)
+    // Dédup par id (seen-set), pas de duplication.
+    const merged = supaItems.slice();
+    const seenIds = new Set(supaItems.map(function (s) { return s.id; }));
+    manifestItems.forEach(function (m) {
+      if (!seenIds.has(m.id)) { merged.push(m); seenIds.add(m.id); }
     });
     cloudItems.forEach(function (c) {
       if (!seenIds.has(c.id)) merged.push(c);
     });
- 
+
     return merged;
   };
- 
+
   /* =========================================================
      HBT_getPlaceholderUrl(name, opts)
      ----------------------------------------------------------
@@ -378,7 +456,7 @@ window.HBT_MEDIA = {
     const bg1 = opts.bg1 || '#f4ead2';
     const bg2 = opts.bg2 || '#e8dcbf';
     const fg  = opts.fg  || '#7a5a32';
- 
+
     const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + w + ' ' + h + '">' +
       '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
         '<stop offset="0%" stop-color="' + bg1 + '"/>' +
@@ -391,10 +469,10 @@ window.HBT_MEDIA = {
         monogram +
       '</text>' +
     '</svg>';
- 
+
     return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
   };
- 
+
   /* =========================================================
      HBT_handleImageError(imgEl, name, opts)
      ----------------------------------------------------------
@@ -410,7 +488,7 @@ window.HBT_MEDIA = {
     const parent = imgEl.parentNode;
     if (parent) parent.classList.add('hbt-placeholder');
   };
- 
+
   /* =========================================================
      HBT_siteImageUrl(key, opts)   — Image du site (hero, atelier)
      ========================================================= */
@@ -419,6 +497,5 @@ window.HBT_MEDIA = {
     if (!id) return null;
     return window.HBT_mediaUrl('site', id, opts || { width: 2200, crop: 'fill', gravity: 'auto' });
   };
- 
+
 })();
- 
