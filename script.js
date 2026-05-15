@@ -863,11 +863,41 @@ const Cart = {
     localStorage.setItem(CART_KEY, JSON.stringify(items));
     this.refreshBadge();
   },
-  add(id) {
+  /* Accepte 3 formes pour rétrocompat :
+     • Cart.add('por-04')                        → CATALOG produit
+     • Cart.add({id, name, price, image, cat})   → produit dynamique (Supabase)
+     • Cart.add('id', {name, price})             → forme courte                  */
+  add(id, meta) {
+    let entry;
+    if (typeof id === 'object' && id) {
+      entry = { id: id.id, name: id.name, price: id.price, image: id.image, cat: id.cat, wood: id.wood };
+    } else if (meta) {
+      entry = { id: id, name: meta.name, price: meta.price, image: meta.image, cat: meta.cat, wood: meta.wood };
+    } else {
+      entry = { id: id };
+    }
+    if (!entry.id) return;
     const items = this.read();
-    const found = items.find(i => i.id === id);
-    if (found) found.qty += 1;
-    else items.push({ id, qty: 1 });
+    const found = items.find(i => i.id === entry.id);
+    if (found) {
+      found.qty += 1;
+      // Met à jour les métadonnées si elles arrivent maintenant
+      if (entry.name && !found.name)   found.name   = entry.name;
+      if (entry.price != null && found.price == null) found.price = Number(entry.price);
+      if (entry.image && !found.image) found.image  = entry.image;
+      if (entry.cat   && !found.cat)   found.cat    = entry.cat;
+      if (entry.wood  && !found.wood)  found.wood   = entry.wood;
+    } else {
+      items.push({
+        id: entry.id,
+        qty: 1,
+        name: entry.name || '',
+        price: entry.price != null ? Number(entry.price) : null,
+        image: entry.image || '',
+        cat: entry.cat || '',
+        wood: entry.wood || ''
+      });
+    }
     this.write(items);
   },
   remove(id) {
@@ -885,8 +915,12 @@ const Cart = {
   },
   total() {
     return this.read().reduce((sum, i) => {
+      // 1) Produit historique CATALOG → utilise getPrice() (peut être surchargé par Prices store)
       const p = CATALOG.find(c => c.id === i.id);
-      return sum + (p ? getPrice(p) * i.qty : 0);
+      if (p) return sum + (getPrice(p) * i.qty);
+      // 2) Produit Supabase / dynamique → utilise le prix stocké dans le cart item
+      if (typeof i.price === 'number' && !isNaN(i.price)) return sum + (i.price * i.qty);
+      return sum;
     }, 0);
   },
   refreshBadge() {
@@ -1005,22 +1039,27 @@ function renderCartPage() {
   if (summary) summary.style.display = 'block';
 
   list.innerHTML = items.map(it => {
+    // 1) Cherche d'abord dans CATALOG (produits historiques)
     const p = CATALOG.find(c => c.id === it.id);
-    if (!p) return '';
-    const name = getField(p, 'name');
-    const wood = getField(p, 'wood');
-    const cat = getField(p, 'cat');
-    const monogram = getField(p, 'monogram');
-    const img = Photos.get(p.id) || p.image || null;
+    // Détermine les champs : CATALOG d'abord, sinon depuis le cart item (Supabase)
+    const name     = p ? getField(p, 'name') : (it.name || it.id);
+    const wood     = p ? getField(p, 'wood') : (it.wood || '');
+    const cat      = p ? getField(p, 'cat')  : (it.cat || '');
+    const monogram = p ? getField(p, 'monogram') : (name ? name.charAt(0).toUpperCase() : '·');
+    const unitPrice= p ? getPrice(p) : (typeof it.price === 'number' ? it.price : 0);
+    const img      = p ? (Photos.get(p.id) || p.image || null) : (it.image || null);
+    const lineId   = p ? p.id : it.id;
+
     return `
-      <li class="cart-item" data-id="${p.id}">
+      <li class="cart-item" data-id="${lineId}">
         <div class="cart-thumb${img ? ' has-photo' : ''}">
           ${img
-            ? `<img src="${img}" alt="${name}" class="product-photo">`
+            ? `<img src="${img}" alt="${name}" class="product-photo" loading="lazy"
+                    onerror="HBT_handleImageError && HBT_handleImageError(this, '${String(name).replace(/'/g, "\\'")}', {monogram:'${monogram}'})">`
             : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:2rem;color:rgba(200,153,104,0.55);font-style:italic;">${monogram || ''}</div>`}
         </div>
         <div class="cart-info">
-          <span class="cat">${cat || ''} · ${wood || ''}</span>
+          <span class="cat">${cat || ''}${wood ? ' · ' + wood : ''}</span>
           <h3>${name || ''}</h3>
           <div class="qty-controls">
             <button data-qty="dec">−</button>
@@ -1029,7 +1068,7 @@ function renderCartPage() {
           </div>
         </div>
         <div>
-          <div class="cart-line-price">${fcfa(getPrice(p) * it.qty)}</div>
+          <div class="cart-line-price">${fcfa(unitPrice * it.qty)}</div>
           <button class="cart-remove">Retirer</button>
         </div>
       </li>
