@@ -929,6 +929,10 @@ const Cart = {
   }
 };
 
+/* Expose globalement pour les scripts inline (boutique.html, etc.) */
+window.Cart = Cart;
+window.CATALOG = CATALOG;
+
 /* ---------- Toast notifications ---------- */
 function showToast(html) {
   let t = document.querySelector('.toast');
@@ -1068,7 +1072,7 @@ function renderCartPage() {
           </div>
         </div>
         <div>
-          <div class="cart-line-price">${fcfa(unitPrice * it.qty)}</div>
+          <div class="cart-line-price">${unitPrice > 0 ? fcfa(unitPrice * it.qty) : '<span style="color:var(--muted);font-style:italic;font-size:0.85rem;">Sur devis</span>'}</div>
           <button class="cart-remove">Retirer</button>
         </div>
       </li>
@@ -1084,14 +1088,34 @@ function renderCartPage() {
 }
 
 /* ---------- Global click handlers ---------- */
+window.showToast = showToast;  // expose pour les scripts inline
 document.addEventListener('click', (e) => {
-  // Add to cart
+  // Add to cart — gère 1) produit CATALOG (data-add seul)
+  //             et 2) produit dynamique/Supabase (data-add + data-name + data-price)
   const addBtn = e.target.closest('[data-add]');
   if (addBtn) {
     const id = addBtn.dataset.add;
+    if (!id) return;
     const p = CATALOG.find(c => c.id === id);
-    Cart.add(id);
-    showToast(`<span class="gold">✓</span> &nbsp;${p ? p.name : 'Article'} ajouté au panier`);
+    let displayName;
+    if (p) {
+      // Produit historique : Cart.add(id) suffit, CATALOG fournit le prix
+      Cart.add(id);
+      displayName = p.name;
+    } else {
+      // Produit dynamique : on récupère name/price/image depuis les data-attributes
+      const name  = addBtn.dataset.name || id;
+      const price = parseInt(addBtn.dataset.price, 10);
+      Cart.add(id, {
+        name: name,
+        price: isNaN(price) ? 0 : price,
+        image: addBtn.dataset.image || '',
+        cat:   addBtn.dataset.cat || '',
+        wood:  addBtn.dataset.wood || ''
+      });
+      displayName = name;
+    }
+    showToast(`<span class="gold">✓</span> &nbsp;${displayName} ajouté au panier`);
     return;
   }
 
