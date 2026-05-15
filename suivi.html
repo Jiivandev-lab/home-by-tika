@@ -225,16 +225,26 @@
   const result  = document.getElementById('order-result');
   const idInput = document.getElementById('order-id');
 
-  // Statuts dans l'ordre (sans Annulé qui est terminal)
+  // 8 statuts de fabrication dans l'ordre (sans Annulé qui est terminal)
   const STEPS = [
-    { key: 'received',   label: 'Commande reçue' },
-    { key: 'confirmed',  label: 'Commande confirmée' },
-    { key: 'preparing',  label: 'Fabrication en cours' },
-    { key: 'finishing',  label: 'Finition' },
-    { key: 'ready',      label: 'Produit prêt' },
-    { key: 'shipping',   label: 'Livraison en cours' },
-    { key: 'delivered',  label: 'Livré' }
+    { key: 'received',           label: 'Commande reçue' },
+    { key: 'confirmed',          label: 'Validation en cours' },
+    { key: 'preparing',          label: 'En fabrication' },
+    { key: 'wood_prep',          label: 'Bois en préparation' },
+    { key: 'varnishing',         label: 'Vernissage' },
+    { key: 'delivery_scheduled', label: 'Livraison programmée' },
+    { key: 'shipping',           label: 'En cours de livraison' },
+    { key: 'delivered',          label: 'Livrée' }
   ];
+
+  // Compat statuts hérités → mappage vers les nouveaux
+  const LEGACY_STATUS_MAP = {
+    finishing: 'varnishing',  // ancien "finition" → nouveau "vernissage"
+    ready:     'delivery_scheduled'  // ancien "produit prêt" → "livraison programmée"
+  };
+  function normalizeStatus(s) {
+    return LEGACY_STATUS_MAP[s] || s;
+  }
 
   function fmt(d) {
     if (!d) return '—';
@@ -268,7 +278,9 @@
       return;
     }
 
-    const currentIdx = Math.max(0, STEPS.findIndex(s => s.key === o.status));
+    const normStatus = normalizeStatus(o.status);
+    const currentIdx = Math.max(0, STEPS.findIndex(s => s.key === normStatus));
+    const progress = Math.round(((currentIdx + 1) / STEPS.length) * 100);
     const history = Array.isArray(o.history) ? o.history : [];
     const stepWhen = key => {
       const h = history.find(x => x.status === key);
@@ -289,6 +301,20 @@
             <div class="meta">Commande passée le ${fmt(o.created_at)}</div>
           </div>
           <span class="badge-status">${STEPS[currentIdx] ? STEPS[currentIdx].label : o.status}</span>
+        </div>
+
+        <!-- BARRE DE PROGRESSION -->
+        <div style="margin-bottom:2rem;">
+          <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--muted);margin-bottom:0.5rem;letter-spacing:1px;text-transform:uppercase;font-weight:600;">
+            <span>Progression</span>
+            <span style="color:var(--gold);">${progress}%</span>
+          </div>
+          <div style="height:8px;background:rgba(200,153,104,0.15);border-radius:999px;overflow:hidden;">
+            <div style="width:${progress}%;height:100%;background:linear-gradient(90deg,var(--gold-pale),var(--gold));border-radius:999px;transition:width 0.6s cubic-bezier(0.25,0.1,0.25,1);"></div>
+          </div>
+          <div style="font-size:0.85rem;color:var(--muted);margin-top:0.6rem;">
+            Dernière mise à jour : <strong style="color:var(--ivory);">${fmt(o.updated_at || o.created_at)}</strong>
+          </div>
         </div>
 
         <div class="order-info">
