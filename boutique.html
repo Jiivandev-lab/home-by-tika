@@ -172,6 +172,22 @@
     // onerror → placeholder SVG élégant via HBT_handleImageError
     const onerr = "HBT_handleImageError(this, '" + name.replace(/'/g, "\\'") + "', {monogram:'" + monogram + "'})";
 
+    // Prix numérique extrait du string "1 200 000 FCFA" → 1200000 pour le panier
+    const priceNum = (function () {
+      const m = String(item.price || '').replace(/\s/g, '').match(/(\d+)/);
+      return m ? parseInt(m[1], 10) : 0;  // 0 = "sur devis" mais ajoutable
+    })();
+
+    // Bouton "Ajouter" universel : même les produits sur devis sont ajoutables.
+    // Le panier affichera "Sur devis" si price = 0.
+    const action = '<button type="button" class="add-btn" data-add-dyn="' + escapeHtml(item.id) + '"'
+        + ' data-name="' + name + '"'
+        + ' data-price="' + priceNum + '"'
+        + ' data-image="' + escapeHtml(item.thumbUrl || item.url || '') + '"'
+        + ' data-cat="' + cat + '"'
+        + ' data-wood="' + wood + '"'
+        + '>Ajouter</button>';
+
     return ''
       + '<article class="product-card" data-type="' + item.category + '">'
       +   '<div class="product-image has-photo">'
@@ -184,12 +200,34 @@
       +     '<h3 class="product-name">' + name + '</h3>'
       +     (desc ? '<p class="product-desc">' + desc + '</p>' : '')
       +     '<div class="product-foot">'
-      +       (price ? '<span class="product-price">' + price + '</span>' : '<span></span>')
-      +       '<a href="contact.html" class="add-btn">Devis</a>'
+      +       (price ? '<span class="product-price">' + price + '</span>' : '<span style="color:var(--muted);font-size:0.85rem;">Sur devis</span>')
+      +       action
       +     '</div>'
       +   '</div>'
       + '</article>';
   }
+
+  /* Délégation : clic "Ajouter au panier" pour les produits dynamiques */
+  document.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-add-dyn]');
+    if (!btn) return;
+    if (!window.Cart) return;
+    const id    = btn.dataset.addDyn;
+    const name  = btn.dataset.name || id;
+    const price = parseInt(btn.dataset.price, 10);
+    window.Cart.add(id, {
+      name: name,
+      price: price,
+      image: btn.dataset.image || '',
+      cat: btn.dataset.cat || '',
+      wood: btn.dataset.wood || ''
+    });
+    if (window.showToast) {
+      window.showToast('<span class="gold">✓</span> &nbsp;' + name + ' ajouté au panier');
+    } else if (window.HBT_toast) {
+      window.HBT_toast('✓ <strong>' + name + '</strong> ajouté au panier');
+    }
+  });
 
   /* showFilter — version ASYNC : manifeste pré-rempli (instant) +
      enrichissement depuis Cloudinary par tag (auto-découverte) */
