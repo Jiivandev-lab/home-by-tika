@@ -213,62 +213,88 @@
 
   let currentGallery = 'portes';
 
-  function showGallery(name) {
-    currentGallery = name;
-    tabs.forEach(t => t.classList.toggle('active', t.dataset.gallery === name));
-
-    console.group('[Galerie] Affichage depuis manifeste');
-    console.log('Catégorie :', name);
-
-    const items = (typeof window.HBT_mediaList === 'function')
-      ? window.HBT_mediaList(name)
-      : [];
-    console.log('Médias trouvés dans manifeste :', items.length);
-    if (items.length > 0) {
-      console.log('Premier média :', items[0]);
-    }
-    console.groupEnd();
-
+  /* renderItems — construit le HTML d'une grille à partir d'une liste */
+  function renderItems(items, name) {
     if (items.length === 0) {
       content.innerHTML = `
         <div class="gallery-empty">
           <h3 style="margin-bottom:0.6rem;">Aucun média dans « ${name} »</h3>
-          <p>Pour ajouter des photos ici :</p>
-          <ol style="text-align:left; max-width:600px; margin:0.8rem auto; padding-left:1.2rem; color:var(--muted); line-height:1.7;">
-            <li>Uploadez votre image dans Cloudinary dans le dossier <code>home-by-tika/${name}/</code></li>
-            <li>Ouvrez le fichier <code>media-manifest.js</code> dans votre dépôt GitHub</li>
-            <li>Ajoutez une ligne dans le tableau <code>${name}: [ ... ]</code> :<br><code style="display:inline-block; margin-top:0.4rem; background:rgba(0,0,0,0.05); padding:0.3rem 0.6rem; border-radius:3px;">{ id: 'mon-image', name: 'Mon image' }</code></li>
-            <li>Commit + push → Netlify redéploie → image visible</li>
-          </ol>
+          <p>Ajoutez des photos depuis l'<a href="admin.html" style="color:var(--gold);">espace de gestion</a> — choisissez « Galerie : ${name.charAt(0).toUpperCase() + name.slice(1)} » dans le menu déroulant.</p>
         </div>`;
       return;
     }
 
     content.innerHTML = '<div class="gallery-grid">' +
       items.map((it, idx) => {
-        if (it.video) {
-          return `<div class="gallery-item" data-idx="${idx}">
-            <video src="${it.url}" muted loop playsinline autoplay preload="metadata"
-                   onerror="this.parentNode.classList.add('placeholder');"></video>
+        const safeName = (it.name || '').replace(/'/g, "\\'");
+        const mono = (it.monogram || (it.name ? it.name.charAt(0).toUpperCase() : '·'));
+        // Détecte vidéo : flag video OU extension de fichier vidéo
+        const isVideo = !!it.video || /\.(mp4|webm|mov|m4v)(\?|$)/i.test(it.url || '');
+        if (isVideo) {
+          return `<div class="gallery-item" data-idx="${idx}" data-video="1">
+            <video src="${it.url}" muted loop playsinline preload="metadata"
+                   onmouseenter="this.play().catch(()=>{});" onmouseleave="this.pause();this.currentTime=0;"
+                   onerror="this.parentNode.classList.add('hbt-placeholder');this.style.display='none';"></video>
+            <div style="position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,0.55);color:#fff;padding:0.3rem 0.6rem;border-radius:2px;font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;pointer-events:none;">▶ Vidéo</div>
           </div>`;
         }
         return `<div class="gallery-item" data-idx="${idx}">
-          <img src="${it.thumbUrl}" alt="${it.name || ''}" loading="lazy" decoding="async"
-               onerror="this.parentNode.classList.add('placeholder'); this.style.display='none';">
+          <img src="${it.thumbUrl || it.url}" alt="${it.name || ''}" loading="lazy" decoding="async"
+               onerror="HBT_handleImageError(this, '${safeName}', {monogram:'${mono}'})">
         </div>`;
       }).join('') +
       '</div>';
 
-    // Click → lightbox
+    // Click → lightbox (vidéo avec controls, image normale)
     content.querySelectorAll('.gallery-item').forEach((el, idx) => {
       el.addEventListener('click', () => openLightbox(items[idx]));
     });
   }
 
+  /* showGallery — utilise HBT_galleryListAsync pour merger
+     produits + galerie pure d'un même tab (ex: 'portes' = produits + ambiance) */
+  async function showGallery(name) {
+    currentGallery = name;
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.gallery === name));
+
+    console.group('[Galerie] Affichage tab "' + name + '"');
+
+    // 1) AFFICHAGE INSTANTANÉ depuis le manifeste (rapide, synchrone)
+    const initialItems = (typeof window.HBT_mediaList === 'function')
+      ? window.HBT_mediaList(name) : [];
+    console.log('  manifeste local :', initialItems.length, 'média(s)');
+
+    if (initialItems.length > 0) {
+      renderItems(initialItems, name);
+    } else {
+      content.innerHTML = '<div class="gallery-empty"><p style="color:var(--muted);">Chargement…</p></div>';
+    }
+
+    // 2) MERGE COMPLET (toutes les catégories partageant ce galleryTab)
+    const fetcher = window.HBT_galleryListAsync || window.HBT_mediaListAsync;
+    if (typeof fetcher === 'function') {
+      try {
+        const enriched = await fetcher(name);
+        console.log('  enrichi (toutes sources) :', enriched.length, 'média(s)');
+        if (currentGallery === name) {
+          renderItems(enriched, name);
+        }
+      } catch (e) {
+        console.warn('  enrichissement échoué :', e.message);
+        if (initialItems.length === 0 && currentGallery === name) {
+          renderItems([], name);
+        }
+      }
+    }
+
+    console.groupEnd();
+  }
+
   function openLightbox(item) {
     if (!item) return;
-    if (item.video) {
-      lightboxContent.innerHTML = `<video src="${item.url}" controls autoplay loop playsinline></video>`;
+    const isVideo = !!item.video || /\.(mp4|webm|mov|m4v)(\?|$)/i.test(item.url || '');
+    if (isVideo) {
+      lightboxContent.innerHTML = `<video src="${item.url}" controls autoplay loop playsinline preload="metadata" style="max-width:92vw;max-height:88vh;background:#000;"></video>`;
     } else {
       lightboxContent.innerHTML = `<img src="${item.url}" alt="${item.name || ''}">`;
     }
