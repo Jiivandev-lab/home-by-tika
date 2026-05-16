@@ -73,13 +73,15 @@ CREATE TABLE IF NOT EXISTS products (
   cloudinary_url  TEXT,                          -- = image_url, URL secure HTTPS
   folder          TEXT DEFAULT '',               -- dossier Cloudinary (ex: home-by-tika/produits/portes)
   tags            TEXT[] DEFAULT '{}',           -- 3 tags: hbt_product, hbt_<cat>, hbt_category_<cat>
+  media_type      TEXT DEFAULT 'image',          -- 'image' ou 'video'
   published       BOOLEAN DEFAULT true,
   created_at      TIMESTAMPTZ DEFAULT NOW(),
   updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Si la table existait déjà sans la colonne folder, on l'ajoute (idempotent) :
+-- Si la table existait déjà sans ces colonnes, on les ajoute (idempotent) :
 ALTER TABLE products ADD COLUMN IF NOT EXISTS folder TEXT DEFAULT '';
+ALTER TABLE products ADD COLUMN IF NOT EXISTS media_type TEXT DEFAULT 'image';
 
 -- Index pour requêtes par catégorie (boutique filter)
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
