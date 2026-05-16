@@ -1090,6 +1090,7 @@
       <div class="hbt-extras-tabs">
         <button type="button" class="hbt-extras-tab active" data-tab="orders">Gestion des commandes</button>
         <button type="button" class="hbt-extras-tab" data-tab="new-product">+ Nouveau produit</button>
+        <button type="button" class="hbt-extras-tab" data-tab="docs">Devis &amp; Factures</button>
       </div>
       <div id="hbt-extras-content"></div>
     `;
@@ -1124,6 +1125,31 @@
       content.innerHTML = ordersHTML();
       wireOrders();
       loadOrders();
+    } else if (tab === 'docs') {
+      // Délègue au module invoice-pdf.js si disponible
+      content.classList.add('hbt-invoice-section');
+      if (typeof window.HBT_renderInvoiceTab === 'function') {
+        window.HBT_renderInvoiceTab(content);
+      } else {
+        // Fallback : module pas encore chargé / problème réseau (CDN)
+        content.innerHTML = '<h2>Devis &amp; Factures</h2>' +
+          '<p class="lede">Le module facturation est en cours de chargement…</p>' +
+          '<div style="display:flex;align-items:center;gap:0.8rem;padding:1.5rem;background:rgba(200,153,104,0.06);border-left:3px solid var(--gold,#c89968);border-radius:2px;">' +
+            '<span style="display:inline-block;width:18px;height:18px;border:2.5px solid var(--gold,#c89968);border-right-color:transparent;border-radius:50%;animation:hbt-spin 0.7s linear infinite;"></span>' +
+            '<span style="color:var(--ivory-dim,#d4c8b3);font-size:0.9rem;">Chargement de Quill (éditeur riche) et html2pdf via CDN…</span>' +
+          '</div>' +
+          '<p style="margin-top:1.2rem;color:var(--muted,#8a7e6a);font-size:0.85rem;">Si rien ne s\'affiche après 10 secondes : vérifiez que <code>invoice-pdf.js</code> est bien dans le repo GitHub et inclus dans <code>admin.html</code>, et que vous avez accès à Internet (Quill+html2pdf sont chargés via CDN).</p>';
+        // Retry toutes les 500ms pendant 10s
+        let tries = 0;
+        const iv = setInterval(() => {
+          if (typeof window.HBT_renderInvoiceTab === 'function') {
+            clearInterval(iv);
+            window.HBT_renderInvoiceTab(content);
+          } else if (++tries > 20) {
+            clearInterval(iv);
+          }
+        }, 500);
+      }
     }
   }
 
