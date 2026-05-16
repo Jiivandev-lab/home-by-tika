@@ -2846,17 +2846,11 @@ img[loading="lazy"].hbt-img-loaded {
   display: block;
 }
 
-/* === ANTI-FLASH après refresh : skeleton sur shop-grid pendant chargement === */
-.product-grid:empty::before {
-  content: '';
-  display: block;
-  grid-column: 1 / -1;
-  height: 320px;
-  background: linear-gradient(90deg, #f4ead2 0%, #e8dcbf 50%, #f4ead2 100%);
-  background-size: 200% 100%;
-  animation: hbt-skeleton-shine 1.6s ease-in-out infinite;
-  border-radius: 4px;
-}
+/* SUPPRIMÉ v5 : skeleton 320px causait une grande zone claire sur mobile.
+   Les 23 produits du manifeste s'affichent instantanément (sync), et
+   l'aspect-ratio 4/5 sur .product-image réserve déjà la place sans skeleton.
+   .product-grid:empty::before {...} retiré pour éviter le bloc clair perçu
+   comme "page blanche" sur petits écrans. */
 
 /* === Touch targets garantis sur mobile (44×44) === */
 @media (max-width: 760px) {

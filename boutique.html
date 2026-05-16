@@ -190,10 +190,17 @@
         + ' data-wood="' + wood + '"'
         + '>Ajouter</button>';
 
+    // Utilise thumbUrl (500px optimisé Cloudinary f_auto/q_auto) pour les cartes
+    // au lieu de url (1200px) → 3× plus léger sur mobile, même qualité visuelle perçue.
+    // Les 2 premières cartes : fetchpriority="high" pour LCP rapide (above-the-fold).
+    const imgSrc = item.thumbUrl || item.url;
+    const fetchPrio = (window._hbtCardIndex == null) ? 0 : window._hbtCardIndex++;
+    const prioAttr = fetchPrio < 2 ? ' fetchpriority="high"' : ' loading="lazy"';
+
     return ''
       + '<article class="product-card" data-type="' + item.category + '">'
       +   '<div class="product-image has-photo">'
-      +     '<img src="' + item.url + '" alt="' + name + '" class="product-photo" loading="lazy" decoding="async"'
+      +     '<img src="' + imgSrc + '" alt="' + name + '" class="product-photo"' + prioAttr + ' decoding="async"'
       +     ' onerror="' + onerr + '">'
       +     (wood ? '<span class="wood-tag">' + wood + '</span>' : (cat ? '<span class="wood-tag">' + cat + '</span>' : ''))
       +   '</div>'
@@ -230,6 +237,7 @@
     });
 
     if (items.length > 0) {
+      window._hbtCardIndex = 0;  // réinitialise pour que les 2 premières cartes aient fetchpriority="high"
       grid.innerHTML = items.map(cardHTML).join('');
     } else {
       grid.innerHTML =
@@ -252,6 +260,7 @@
             + '<p style="color:var(--muted); font-size:0.95rem;">Ajoutez un produit depuis l\'<a href="admin.html">espace de gestion</a>.</p>'
             + '</div>';
         } else if (enriched.length !== items.length) {
+          window._hbtCardIndex = 0;
           grid.innerHTML = enriched.map(cardHTML).join('');
         }
       } catch (e) {
