@@ -353,10 +353,10 @@
           <textarea id="np-desc" placeholder="Description courte du produit…"></textarea>
         </div>
         <div class="full">
-          <label>Image *</label>
+          <label id="np-file-label">Image *</label>
           <div class="hbt-upload-zone" id="np-upload-zone">
             <div class="upload-zone-content">
-              <div class="upload-hint">Cliquez ou glissez une image ici (JPG, PNG, WEBP)</div>
+              <div class="upload-hint" id="np-upload-hint">Cliquez ou glissez une image ici (JPG, PNG, WEBP)</div>
             </div>
             <input type="file" id="np-file" accept="image/*" style="display:none;">
           </div>
@@ -413,11 +413,40 @@
 
     let pendingFile = null;
     let pendingPreview = null;
+    let pendingKind = 'image';  // 'image' ou 'video'
+
+    /* Détermine si la catégorie accepte des vidéos
+       (mediaKind:'video' dans HBT_CATEGORIES, ou slug 'videos') */
+    function kindForCategory(catSlug) {
+      const info = (typeof window.HBT_categoryInfo === 'function')
+                    ? window.HBT_categoryInfo(catSlug) : null;
+      if (info && info.mediaKind === 'video') return 'video';
+      if (catSlug === 'videos') return 'video';
+      return 'image';
+    }
+
+    /* Adapte le file input + le label selon le type de média attendu */
+    function syncFileInputForKind(kind) {
+      const fileEl  = $('#np-file');
+      const hintEl  = $('#np-upload-hint');
+      const labelEl = $('#np-file-label');
+      if (kind === 'video') {
+        fileEl.setAttribute('accept', 'video/mp4,video/webm,video/quicktime');
+        if (labelEl) labelEl.textContent = 'Vidéo *';
+        if (hintEl && !pendingFile) hintEl.textContent = 'Cliquez ou glissez une vidéo ici (MP4, WEBM ≤ 100 Mo)';
+      } else {
+        fileEl.setAttribute('accept', 'image/*');
+        if (labelEl) labelEl.textContent = 'Image *';
+        if (hintEl && !pendingFile) hintEl.textContent = 'Cliquez ou glissez une image ici (JPG, PNG, WEBP)';
+      }
+    }
 
     /* Met à jour le panneau debug en live */
     function updateDebug() {
       const name = nameI.value.trim();
       const cat  = catI.value;
+      // Sync input file selon média attendu
+      syncFileInputForKind(kindForCategory(cat));
       if (!name) {
         dbg('slug').textContent = '(en attente du nom)';
         dbg('publicId').textContent = '—';
@@ -451,20 +480,50 @@
     });
 
     function handleFile(file) {
-      if (!file.type.startsWith('image/')) {
-        toast('⚠ Fichier non image', '#c45b5b'); return;
+      const isVideo = file.type.startsWith('video/');
+      const isImage = file.type.startsWith('image/');
+      const expectedKind = kindForCategory(catI.value);
+
+      // Validation : la catégorie sélectionnée détermine le type accepté
+      if (expectedKind === 'video' && !isVideo) {
+        toast('⚠ Cette catégorie attend une vidéo (MP4 / WEBM)', '#c45b5b'); return;
       }
+      if (expectedKind === 'image' && !isImage) {
+        toast('⚠ Cette catégorie attend une image (JPG / PNG / WEBP)', '#c45b5b'); return;
+      }
+
+      // Taille max : 100 Mo pour vidéo, 10 Mo pour image
+      const maxBytes = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
+      if (file.size > maxBytes) {
+        toast('⚠ Fichier trop volumineux (' + Math.round(file.size / 1024 / 1024) + ' Mo, max ' + (maxBytes / 1024 / 1024) + ' Mo)', '#c45b5b');
+        return;
+      }
+
       pendingFile = file;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        pendingPreview = e.target.result;
+      pendingKind = isVideo ? 'video' : 'image';
+
+      // Aperçu : image inline, vidéo → première frame ou icône
+      if (isImage) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          pendingPreview = e.target.result;
+          zone.classList.add('has-image');
+          zone.querySelector('.upload-zone-content').innerHTML =
+            '<img src="' + pendingPreview + '" alt="aperçu">' +
+            '<div class="upload-hint" style="padding:0.6rem;">Cliquez pour changer</div>';
+          submitBtn.disabled = false;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // Vidéo : on génère un blob URL pour preview
+        const blobUrl = URL.createObjectURL(file);
+        pendingPreview = blobUrl;
         zone.classList.add('has-image');
         zone.querySelector('.upload-zone-content').innerHTML =
-          '<img src="' + pendingPreview + '" alt="aperçu">' +
-          '<div class="upload-hint" style="padding:0.6rem;">Cliquez pour changer</div>';
+          '<video src="' + blobUrl + '" muted playsinline preload="metadata" style="max-width:100%;max-height:240px;display:block;margin:0 auto;border-radius:2px;background:#000;" controls></video>' +
+          '<div class="upload-hint" style="padding:0.6rem;">' + escapeHtml(file.name) + ' (' + Math.round(file.size / 1024 / 1024) + ' Mo) — Cliquez pour changer</div>';
         submitBtn.disabled = false;
-      };
-      reader.readAsDataURL(file);
+      }
     }
 
     /* Soumission du formulaire — upload Cloudinary + insert Supabase */
@@ -503,7 +562,9 @@
         ].filter(Boolean).join('|');
         if (ctx) fd.append('context', ctx);
 
-        const upUrl = 'https://api.cloudinary.com/v1_1/' + cloudName + '/image/upload';
+        // Endpoint Cloudinary selon le type média (image|video|auto)
+        const resourceType = (pendingKind === 'video') ? 'video' : 'image';
+        const upUrl = 'https://api.cloudinary.com/v1_1/' + cloudName + '/' + resourceType + '/upload';
         const upRes = await fetch(upUrl, { method: 'POST', body: fd });
         const upData = await upRes.json();
         if (!upRes.ok || !upData.secure_url) {
@@ -526,7 +587,8 @@
           monogram: (monoI.value || name.charAt(0) || '').toUpperCase(),
           cloudinary_id: upData.public_id,
           cloudinary_url: upData.secure_url,
-          tags: meta.tags
+          tags: meta.tags,
+          media_type: pendingKind  // 'image' ou 'video'
         });
 
         toast('✓ Produit publié : <strong>' + escapeHtml(product.name) + '</strong>', '#2e8a56');
