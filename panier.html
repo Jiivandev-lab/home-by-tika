@@ -59,21 +59,214 @@
           <div class="summary-row"><span>Livraison &amp; installation</span><span id="sum-shipping">—</span></div>
           <div class="summary-row total"><span>Total</span><span id="sum-total">—</span></div>
           <button id="checkout-btn" class="btn btn-primary" style="width: 100%; margin-top: 1.5rem;">Finaliser la commande</button>
-          <p style="font-size: 0.8rem; margin-top: 1rem; color: var(--muted); text-align: center;">Paiement sécurisé · Mobile Money &amp; virement acceptés</p>
-
-          <a href="localisation.html" class="btn btn-ghost" style="width: 100%; margin-top: 1rem; display: block; text-align: center; text-decoration: none;">
-            📍 Partager mon emplacement
-          </a>
-          <p style="font-size: 0.78rem; margin-top: 0.6rem; color: var(--muted); text-align: center;">
-            Pour que nous sachions où livrer
-          </p>
+          <p style="font-size: 0.8rem; margin-top: 1rem; color: var(--muted); text-align: center;">Mobile Money &amp; virement acceptés · Paiement après confirmation</p>
         </aside>
+      </div>
+
+      <!-- ====================================================================
+           FORMULAIRE CHECKOUT — apparaît au clic "Finaliser"
+           Crée une commande dans Supabase via OrderService.create
+           ==================================================================== -->
+      <div id="checkout-modal" style="display:none;position:fixed;inset:0;background:rgba(20,16,12,0.78);z-index:9999;align-items:flex-start;justify-content:center;padding:2rem 1rem;overflow-y:auto;backdrop-filter:blur(4px);">
+        <div style="background:var(--bg-card);border:1px solid var(--gold);max-width:580px;width:100%;padding:2rem;border-radius:4px;color:var(--ivory);margin:auto;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.6rem;">
+            <h2 style="font-family:var(--serif);color:var(--gold);font-size:1.6rem;margin:0;">Finaliser ma commande</h2>
+            <button type="button" id="checkout-close" style="background:transparent;border:1px solid var(--line);color:var(--ivory);width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:1.1rem;">×</button>
+          </div>
+
+          <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1.4rem;">
+            Renseignez vos coordonnées. Nous vous contacterons rapidement par WhatsApp pour confirmer le paiement et la livraison.
+          </p>
+
+          <form id="checkout-form">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem 1.2rem;margin-bottom:1.2rem;">
+              <div style="grid-column:1/-1;">
+                <label style="display:block;font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:0.4rem;">Nom complet *</label>
+                <input type="text" id="co-name" required style="width:100%;background:var(--bg-soft);border:1px solid var(--line);color:var(--ivory);padding:0.8rem 1rem;font-family:Inter;font-size:0.95rem;border-radius:2px;box-sizing:border-box;">
+              </div>
+              <div>
+                <label style="display:block;font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:0.4rem;">Téléphone *</label>
+                <input type="tel" id="co-phone" required placeholder="+225 07 …" style="width:100%;background:var(--bg-soft);border:1px solid var(--line);color:var(--ivory);padding:0.8rem 1rem;font-family:Inter;font-size:0.95rem;border-radius:2px;box-sizing:border-box;">
+              </div>
+              <div>
+                <label style="display:block;font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:0.4rem;">Email</label>
+                <input type="email" id="co-email" style="width:100%;background:var(--bg-soft);border:1px solid var(--line);color:var(--ivory);padding:0.8rem 1rem;font-family:Inter;font-size:0.95rem;border-radius:2px;box-sizing:border-box;">
+              </div>
+              <div style="grid-column:1/-1;">
+                <label style="display:block;font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:0.4rem;">Adresse de livraison *</label>
+                <textarea id="co-address" rows="2" required style="width:100%;background:var(--bg-soft);border:1px solid var(--line);color:var(--ivory);padding:0.8rem 1rem;font-family:Inter;font-size:0.95rem;border-radius:2px;box-sizing:border-box;resize:vertical;" placeholder="Quartier, rue, point de repère…"></textarea>
+              </div>
+              <div style="grid-column:1/-1;">
+                <label style="display:block;font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:0.4rem;">Notes (optionnel)</label>
+                <textarea id="co-notes" rows="2" style="width:100%;background:var(--bg-soft);border:1px solid var(--line);color:var(--ivory);padding:0.8rem 1rem;font-family:Inter;font-size:0.95rem;border-radius:2px;box-sizing:border-box;resize:vertical;" placeholder="Demande spéciale, sur-mesure, créneau de livraison…"></textarea>
+              </div>
+            </div>
+
+            <div id="checkout-error" style="display:none;background:rgba(196,91,91,0.12);border-left:3px solid #c45b5b;padding:0.8rem 1rem;margin-bottom:1rem;color:#e88c8c;font-size:0.88rem;border-radius:2px;"></div>
+
+            <button type="submit" id="checkout-submit" class="btn btn-primary" style="width:100%;padding:1rem;">
+              Valider ma commande
+            </button>
+            <p style="font-size:0.78rem;color:var(--muted);margin-top:0.8rem;text-align:center;">
+              Vous recevrez un numéro de suivi pour suivre l'avancement de votre commande en temps réel.
+            </p>
+          </form>
+
+          <!-- Confirmation (s'affiche après submit réussi) -->
+          <div id="checkout-success" style="display:none;text-align:center;padding:1.5rem 0;">
+            <div style="font-size:3rem;color:var(--gold);margin-bottom:0.8rem;">✓</div>
+            <h3 style="font-family:var(--serif);color:var(--gold);font-size:1.4rem;margin-bottom:0.6rem;">Commande enregistrée — Akwaba !</h3>
+            <p style="color:var(--ivory);margin-bottom:1.2rem;">Votre numéro de suivi :</p>
+            <div style="font-family:Menlo,monospace;font-size:1.3rem;color:var(--gold);background:rgba(200,153,104,0.08);padding:0.8rem 1.4rem;border-radius:2px;border:1px solid rgba(200,153,104,0.3);display:inline-block;margin-bottom:1.4rem;letter-spacing:1px;" id="checkout-orderid">—</div>
+            <p style="color:var(--muted);font-size:0.92rem;margin-bottom:1.4rem;line-height:1.55;">
+              Notez ce numéro pour suivre votre commande à tout moment.<br>
+              Nous vous contactons sous peu sur WhatsApp pour confirmer le paiement.
+            </p>
+            <div style="display:flex;flex-direction:column;gap:0.6rem;">
+              <a href="#" id="checkout-track-link" class="btn btn-primary" style="text-decoration:none;">Suivre ma commande →</a>
+              <a id="checkout-wa-link" href="#" target="_blank" rel="noopener" class="btn btn-ghost" style="text-decoration:none;">Nous contacter sur WhatsApp</a>
+              <a href="boutique.html" style="color:var(--muted);text-decoration:none;font-size:0.88rem;margin-top:0.4rem;">← Retour à la boutique</a>
+            </div>
+          </div>
+        </div>
       </div>
 
     </div>
   </section>
 
 </main>
+
+<style>
+  #checkout-modal.open { display: flex !important; }
+  @media (max-width: 560px) {
+    #checkout-modal > div { padding: 1.4rem 1.2rem; }
+    #checkout-modal h2 { font-size: 1.3rem; }
+    #checkout-modal form > div:first-child { grid-template-columns: 1fr !important; }
+  }
+</style>
+
+<script>
+/* ==========================================================
+   CHECKOUT CLIENT — création commande Supabase via OrderService
+   ========================================================== */
+(function () {
+  const modal       = document.getElementById('checkout-modal');
+  const closeBtn    = document.getElementById('checkout-close');
+  const form        = document.getElementById('checkout-form');
+  const submitBtn   = document.getElementById('checkout-submit');
+  const errorBox    = document.getElementById('checkout-error');
+  const successBox  = document.getElementById('checkout-success');
+  const orderIdBox  = document.getElementById('checkout-orderid');
+  const trackLink   = document.getElementById('checkout-track-link');
+  const waLink      = document.getElementById('checkout-wa-link');
+
+  if (!modal) return;
+
+  function open() {
+    // Vérifie qu'il y a quelque chose dans le panier
+    if (!window.Cart || window.Cart.count() === 0) {
+      if (window.showToast) window.showToast('Votre panier est vide.');
+      return;
+    }
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => document.getElementById('co-name').focus(), 100);
+  }
+  function close() {
+    modal.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  closeBtn.addEventListener('click', close);
+  modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.classList.contains('open')) close(); });
+
+  // Override du bouton "Finaliser" — empêche le comportement "simulé" de script.js
+  // et ouvre la modal à la place.
+  document.addEventListener('click', (e) => {
+    if (e.target && e.target.id === 'checkout-btn') {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      open();
+    }
+  }, true);  // capture-phase pour passer AVANT le handler de script.js
+
+  // Submit du formulaire
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorBox.style.display = 'none';
+
+    const name    = document.getElementById('co-name').value.trim();
+    const phone   = document.getElementById('co-phone').value.trim();
+    const email   = document.getElementById('co-email').value.trim();
+    const address = document.getElementById('co-address').value.trim();
+    const notes   = document.getElementById('co-notes').value.trim();
+
+    if (!name || !phone || !address) {
+      errorBox.textContent = 'Nom, téléphone et adresse sont obligatoires.';
+      errorBox.style.display = 'block';
+      return;
+    }
+
+    if (!window.OrderService || !window.Cart) {
+      errorBox.textContent = 'Service indisponible. Réessayez dans un instant ou contactez-nous sur WhatsApp.';
+      errorBox.style.display = 'block';
+      return;
+    }
+
+    // Construit la liste d'articles depuis le panier
+    const cartItems = window.Cart.read();
+    const items = cartItems.map(it => {
+      // Cherche le produit (CATALOG ou cart item lui-même pour Supabase)
+      const p = (window.CATALOG || []).find(c => c.id === it.id);
+      return {
+        id: it.id,
+        name:  p ? p.name : (it.name || it.id),
+        cat:   p ? p.cat : (it.cat || ''),
+        wood:  p ? p.wood : (it.wood || ''),
+        qty:   it.qty || 1,
+        price: p ? (typeof p.price === 'number' ? p.price : 0) : (typeof it.price === 'number' ? it.price : 0)
+      };
+    });
+
+    const total = window.Cart.total();
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Enregistrement…';
+
+    try {
+      const order = await window.OrderService.create({
+        customer_name: name,
+        phone: phone,
+        address: (email ? 'Email: ' + email + ' · ' : '') + address,
+        items: items,
+        total: total,
+        notes: notes
+      });
+
+      // Affiche la confirmation
+      form.style.display = 'none';
+      successBox.style.display = 'block';
+      orderIdBox.textContent = order.id;
+      trackLink.href = 'suivi.html?id=' + encodeURIComponent(order.id);
+      waLink.href = 'https://wa.me/2250748738671?text=' + encodeURIComponent(
+        'Bonjour HOME BY TIKA, je viens de passer la commande ' + order.id +
+        ' au nom de ' + name + '. Je suis disponible pour confirmer le paiement.'
+      );
+
+      // Vide le panier
+      window.Cart.write([]);
+      if (window.HBT && window.HBT.track) window.HBT.track('checkout', { orderId: order.id, total: total });
+
+    } catch (err) {
+      console.error('[Checkout]', err);
+      errorBox.textContent = '⚠ Erreur d\'enregistrement : ' + (err.message || err) + '. Si le problème persiste, contactez-nous sur WhatsApp.';
+      errorBox.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Valider ma commande';
+    }
+  });
+})();
+</script>
 
 <footer class="site-footer">
   <div class="container">
