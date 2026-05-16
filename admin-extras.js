@@ -993,7 +993,7 @@
       }
     });
 
-    // === Valider paiement ===
+    // === Valider paiement (+ création auto entrée comptable) ===
     $('#ord-validate-payment', modal).addEventListener('click', async () => {
       if (paid) return;
       const amount = prompt('Montant payé en FCFA (laisser vide = total) :', (o.total || ''));
@@ -1001,9 +1001,10 @@
       const method = prompt('Mode de paiement (Mobile Money / Virement / Espèces / Carte) :', o.payment_method || 'Mobile Money');
       if (method === null) return;
       try {
+        const amountPaid = amount === '' ? (Number(o.total) || 0) : Number(amount);
         const patch = {
           payment_confirmed: true,
-          amount_paid: amount === '' ? (o.total || 0) : Number(amount),
+          amount_paid: amountPaid,
           payment_method: method,
           updated_at: new Date().toISOString()
         };
@@ -1016,16 +1017,56 @@
           },
           body: JSON.stringify(patch)
         });
-        // Update local
         Object.assign(o, patch);
-        // Aussi passer au statut "payment_confirmed" si pas déjà plus avancé
+
+        // === Création entrée comptable (idempotent grâce à UNIQUE(order_id)) ===
+        try {
+          const accId = 'ACC-' + new Date().toISOString().slice(2,10).replace(/-/g,'') + '-' +
+                        Math.random().toString(36).slice(2,6).toUpperCase();
+          const accEntry = {
+            id: accId,
+            order_id: o.id,
+            invoice_id: o.invoice_id || '',
+            client_name: o.customer_name || '',
+            client_phone: o.phone || '',
+            amount_paid: amountPaid,
+            order_total: Number(o.total) || 0,
+            payment_method: method,
+            paid_at: new Date().toISOString(),
+            status: 'recorded',
+            notes: ''
+          };
+          const accRes = await fetch(window.HBT_CONFIG.supabase.url + '/rest/v1/accounting_entries', {
+            method: 'POST',
+            headers: {
+              apikey: window.HBT_CONFIG.supabase.anonKey,
+              Authorization: 'Bearer ' + window.HBT_CONFIG.supabase.anonKey,
+              'Content-Type': 'application/json',
+              Prefer: 'resolution=ignore-duplicates'
+            },
+            body: JSON.stringify(accEntry)
+          });
+          if (!accRes.ok && accRes.status !== 409) {
+            const txt = await accRes.text();
+            if (accRes.status === 404 || /accounting_entries.*does not exist/i.test(txt)) {
+              console.warn('[Compta] Table absente — exécutez setup-accounting.sql');
+            } else {
+              console.warn('[Compta] Insert ' + accRes.status, txt.slice(0, 200));
+            }
+          }
+        } catch (accErr) {
+          console.warn('[Compta] Erreur entrée comptable :', accErr.message);
+          // Non bloquant : le paiement est validé même si la compta échoue
+        }
+
+        // Avance statut si on est en amont
         const idx = ORDER_STATUSES_ADMIN.findIndex(s => s.key === o.status);
         const idxPaid = ORDER_STATUSES_ADMIN.findIndex(s => s.key === 'payment_confirmed');
         if (idx < idxPaid) {
           await window.OrderService.updateStatus(o.id, 'payment_confirmed', 'Paiement confirmé');
           o.status = 'payment_confirmed';
         }
-        toast('✓ Paiement confirmé', '#2e8a56');
+        toast('✓ Paiement confirmé + entrée comptable créée', '#2e8a56');
         closeModal();
         loadOrders();
       } catch (err) {
@@ -1092,6 +1133,7 @@
         <button type="button" class="hbt-extras-tab" data-tab="new-product">+ Nouveau produit</button>
         <button type="button" class="hbt-extras-tab" data-tab="docs">Devis &amp; Factures</button>
         <button type="button" class="hbt-extras-tab" data-tab="requests">Demandes de devis</button>
+        <button type="button" class="hbt-extras-tab" data-tab="accounting">Comptabilité</button>
       </div>
       <div id="hbt-extras-content"></div>
     `;
@@ -1136,7 +1178,392 @@
     } else if (tab === 'requests') {
       content.classList.remove('hbt-invoice-section');
       renderQuoteRequestsTab(content);
+    } else if (tab === 'accounting') {
+      content.classList.remove('hbt-invoice-section');
+      renderAccountingTab(content);
     }
+  }
+
+  /* ============================================================
+     COMPTABILITÉ — Lecture accounting_entries Supabase
+     ============================================================ */
+  let allAccEntries = [];
+
+  function accFmt(n) {
+    if (n == null || isNaN(n)) return '0 FCFA';
+    return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n) + ' FCFA';
+  }
+  function isoDate(d) {
+    return new Date(d).toISOString().slice(0, 10);
+  }
+  function todayISO() { return new Date().toISOString().slice(0, 10); }
+  function firstOfMonth() {
+    const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10);
+  }
+  function firstOfYear() {
+    const d = new Date(d.getFullYear ? d.getFullYear() : Date.now());
+    return new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10);
+  }
+
+  function renderAccountingTab(container) {
+    container.innerHTML = `
+      <div class="hbt-extras-section">
+        <h2 style="font-family:var(--serif,'Playfair Display'),serif;color:var(--gold,#c89968);font-size:1.4rem;margin:0 0 0.4rem;">Comptabilité</h2>
+        <p style="color:var(--muted,#8a7e6a);font-size:0.9rem;margin-bottom:1.4rem;">Paiements encaissés. Une entrée est créée automatiquement quand vous validez un paiement dans une commande.</p>
+
+        <!-- KPIs -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0.8rem;margin-bottom:1.6rem;">
+          <div style="background:rgba(46,138,86,0.08);border-left:3px solid #2e8a56;padding:1rem 1.2rem;border-radius:2px;">
+            <div style="color:#5cc488;font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:0.3rem;">Aujourd'hui</div>
+            <div id="acc-kpi-day" style="font-family:var(--serif,'Playfair Display'),serif;font-size:1.4rem;color:var(--ivory,#f5ede0);">—</div>
+            <div id="acc-kpi-day-count" style="font-size:0.78rem;color:var(--muted);margin-top:0.2rem;">— paiement(s)</div>
+          </div>
+          <div style="background:rgba(200,153,104,0.08);border-left:3px solid var(--gold,#c89968);padding:1rem 1.2rem;border-radius:2px;">
+            <div style="color:var(--gold,#c89968);font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:0.3rem;">Ce mois</div>
+            <div id="acc-kpi-month" style="font-family:var(--serif,'Playfair Display'),serif;font-size:1.4rem;color:var(--ivory,#f5ede0);">—</div>
+            <div id="acc-kpi-month-count" style="font-size:0.78rem;color:var(--muted);margin-top:0.2rem;">— paiement(s)</div>
+          </div>
+          <div style="background:rgba(200,153,104,0.05);border-left:3px solid #d4a766;padding:1rem 1.2rem;border-radius:2px;">
+            <div style="color:#d4a766;font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:0.3rem;">Cette année</div>
+            <div id="acc-kpi-year" style="font-family:var(--serif,'Playfair Display'),serif;font-size:1.4rem;color:var(--ivory,#f5ede0);">—</div>
+            <div id="acc-kpi-year-count" style="font-size:0.78rem;color:var(--muted);margin-top:0.2rem;">— paiement(s)</div>
+          </div>
+        </div>
+
+        <!-- Filtres -->
+        <div class="hbt-orders-controls" style="margin-bottom:1rem;">
+          <input type="text" id="acc-search" placeholder="Rechercher : client, téléphone, n° commande…">
+          <select id="acc-method">
+            <option value="">Tous modes</option>
+            <option>Mobile Money</option>
+            <option>Virement bancaire</option>
+            <option>Espèces</option>
+            <option>Carte bancaire</option>
+            <option>Chèque</option>
+          </select>
+          <input type="date" id="acc-from" title="Date de début">
+          <input type="date" id="acc-to"   title="Date de fin">
+          <button type="button" class="hbt-btn-primary" id="acc-refresh" style="padding:0.6rem 1.2rem;font-size:0.75rem;">Rafraîchir</button>
+        </div>
+
+        <!-- Actions export -->
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+          <button type="button" id="acc-export-csv" style="padding:0.6rem 1.1rem;font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;border:1px solid var(--gold,#c89968);background:transparent;color:var(--gold,#c89968);cursor:pointer;border-radius:2px;">Exporter CSV</button>
+          <button type="button" id="acc-export-pdf" style="padding:0.6rem 1.1rem;font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;border:1px solid var(--gold,#c89968);background:transparent;color:var(--gold,#c89968);cursor:pointer;border-radius:2px;">Exporter PDF</button>
+          <button type="button" id="acc-monthly" style="padding:0.6rem 1.1rem;font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;background:var(--gold,#c89968);border:none;color:#fff;cursor:pointer;border-radius:2px;">Résumé mensuel imprimable</button>
+        </div>
+
+        <div id="acc-status-line" style="font-size:0.85rem;color:var(--muted);margin-bottom:0.8rem;"></div>
+
+        <div style="overflow-x:auto;">
+          <table class="hbt-orders-table" id="acc-table">
+            <thead><tr>
+              <th>Date</th><th>Client</th><th>N° Commande</th><th>N° Facture</th>
+              <th>Montant payé</th><th>Total commande</th><th>Solde</th>
+              <th>Mode</th><th>Statut</th>
+            </tr></thead>
+            <tbody><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:1.4rem;">Chargement…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    `;
+    wireAccountingTab();
+    loadAccountingEntries();
+  }
+
+  async function loadAccountingEntries() {
+    const tbody = document.querySelector('#acc-table tbody');
+    const line  = document.querySelector('#acc-status-line');
+    if (!tbody) return;
+
+    const supaOk = (window.HBT_CONFIG && window.HBT_CONFIG.isSupabaseReady && window.HBT_CONFIG.isSupabaseReady());
+    if (!supaOk) {
+      if (line) { line.innerHTML = '⚠ Supabase non configuré — comptabilité indisponible'; line.style.color = '#c89968'; }
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:1.4rem;">Configurez Supabase dans config.js</td></tr>';
+      return;
+    }
+
+    try {
+      const res = await fetch(window.HBT_CONFIG.supabase.url + '/rest/v1/accounting_entries?select=*&order=paid_at.desc', {
+        headers: {
+          apikey: window.HBT_CONFIG.supabase.anonKey,
+          Authorization: 'Bearer ' + window.HBT_CONFIG.supabase.anonKey
+        },
+        cache: 'no-store'
+      });
+      if (res.ok) {
+        allAccEntries = await res.json();
+        if (line) { line.innerHTML = '✓ Connecté à Supabase — ' + allAccEntries.length + ' paiement(s)'; line.style.color = '#2e8a56'; }
+        renderAccountingRows();
+        return;
+      }
+      const txt = await res.text();
+      if (res.status === 404 || /accounting_entries.*does not exist/i.test(txt)) {
+        line.innerHTML = '❌ Table <code>accounting_entries</code> introuvable.' +
+          '<div style="background:rgba(196,91,91,0.08);border-left:3px solid #c45b5b;padding:1rem 1.2rem;margin-top:0.8rem;border-radius:2px;color:var(--ivory-dim);font-size:0.92rem;line-height:1.6;">' +
+          '<strong style="color:#e88c8c;display:block;margin-bottom:0.5rem;">Pour activer :</strong>' +
+          '<ol style="margin:0;padding-left:1.4rem;"><li>Supabase → SQL Editor → New query</li>' +
+          '<li>Copiez <code style="background:rgba(200,153,104,0.12);padding:0.15rem 0.4rem;border-radius:2px;color:var(--gold);">setup-accounting.sql</code></li>' +
+          '<li>Collez → Run</li><li>Cliquez Rafraîchir</li></ol></div>';
+        line.style.color = '#e88c8c';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:1.4rem;">— Aucune donnée chargée —</td></tr>';
+      } else {
+        line.innerHTML = '❌ Erreur Supabase ' + res.status + ': ' + escapeHtml(txt.slice(0, 200));
+        line.style.color = '#e88c8c';
+      }
+    } catch (e) {
+      line.innerHTML = '❌ Erreur réseau : ' + escapeHtml(e.message);
+      line.style.color = '#e88c8c';
+    }
+  }
+
+  function renderAccountingRows() {
+    const tbody = document.querySelector('#acc-table tbody');
+    if (!tbody) return;
+
+    const q       = (document.querySelector('#acc-search').value || '').trim().toLowerCase();
+    const method  = document.querySelector('#acc-method').value;
+    const from    = document.querySelector('#acc-from').value;
+    const to      = document.querySelector('#acc-to').value;
+
+    const filtered = allAccEntries.filter(e => {
+      if (method && e.payment_method !== method) return false;
+      if (from && isoDate(e.paid_at) < from) return false;
+      if (to   && isoDate(e.paid_at) > to)   return false;
+      if (q) {
+        const blob = [e.client_name, e.client_phone, e.order_id, e.invoice_id].filter(Boolean).join(' ').toLowerCase();
+        if (blob.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+
+    // KPIs (sur la liste filtrée)
+    const todayStr = todayISO();
+    const monthStart = firstOfMonth();
+    const yearStart = firstOfYear();
+    const sumIf = (cond) => filtered.filter(cond).reduce((s, e) => s + (Number(e.amount_paid) || 0), 0);
+    const countIf = (cond) => filtered.filter(cond).length;
+
+    const dayTotal   = sumIf(e => isoDate(e.paid_at) === todayStr);
+    const dayCount   = countIf(e => isoDate(e.paid_at) === todayStr);
+    const monthTotal = sumIf(e => isoDate(e.paid_at) >= monthStart);
+    const monthCount = countIf(e => isoDate(e.paid_at) >= monthStart);
+    const yearTotal  = sumIf(e => isoDate(e.paid_at) >= yearStart);
+    const yearCount  = countIf(e => isoDate(e.paid_at) >= yearStart);
+
+    document.querySelector('#acc-kpi-day').textContent         = accFmt(dayTotal);
+    document.querySelector('#acc-kpi-day-count').textContent   = dayCount + ' paiement' + (dayCount > 1 ? 's' : '');
+    document.querySelector('#acc-kpi-month').textContent       = accFmt(monthTotal);
+    document.querySelector('#acc-kpi-month-count').textContent = monthCount + ' paiement' + (monthCount > 1 ? 's' : '');
+    document.querySelector('#acc-kpi-year').textContent        = accFmt(yearTotal);
+    document.querySelector('#acc-kpi-year-count').textContent  = yearCount + ' paiement' + (yearCount > 1 ? 's' : '');
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:1.8rem;">Aucune entrée comptable ne correspond aux critères.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(e => {
+      const orderTotal = Number(e.order_total) || 0;
+      const paid = Number(e.amount_paid) || 0;
+      const balance = Math.max(0, orderTotal - paid);
+      const statusColor = e.status === 'refunded' ? '#c45b5b' : (e.status === 'adjusted' ? '#c89968' : '#5cc488');
+      const statusLabel = e.status === 'refunded' ? 'Remboursé' : (e.status === 'adjusted' ? 'Ajusté' : 'Enregistré');
+      return `
+        <tr data-id="${escapeHtml(e.id)}">
+          <td data-label="Date">${fmt(e.paid_at)}</td>
+          <td data-label="Client"><strong>${escapeHtml(e.client_name || '—')}</strong>${e.client_phone ? '<br><span style="color:var(--muted);font-size:0.8rem;">' + escapeHtml(e.client_phone) + '</span>' : ''}</td>
+          <td data-label="N° Commande"><span class="hbt-order-id-cell">${escapeHtml(e.order_id || '—')}</span></td>
+          <td data-label="N° Facture">${e.invoice_id ? '<span style="font-family:Menlo,monospace;color:var(--gold);">' + escapeHtml(e.invoice_id) + '</span>' : '—'}</td>
+          <td data-label="Montant payé" style="font-weight:600;color:#5cc488;">${accFmt(paid)}</td>
+          <td data-label="Total commande" style="color:var(--ivory-dim);">${orderTotal ? accFmt(orderTotal) : '—'}</td>
+          <td data-label="Solde" style="color:${balance > 0 ? '#e88c8c' : '#5cc488'};font-weight:600;">${balance > 0 ? accFmt(balance) : '✓'}</td>
+          <td data-label="Mode">${escapeHtml(e.payment_method || '—')}</td>
+          <td data-label="Statut"><span style="padding:0.25rem 0.6rem;font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;color:${statusColor};border:1px solid ${statusColor};border-radius:999px;">${statusLabel}</span></td>
+        </tr>`;
+    }).join('');
+  }
+
+  function wireAccountingTab() {
+    document.querySelector('#acc-search').addEventListener('input', renderAccountingRows);
+    document.querySelector('#acc-method').addEventListener('change', renderAccountingRows);
+    document.querySelector('#acc-from').addEventListener('change', renderAccountingRows);
+    document.querySelector('#acc-to').addEventListener('change', renderAccountingRows);
+    document.querySelector('#acc-refresh').addEventListener('click', loadAccountingEntries);
+    document.querySelector('#acc-export-csv').addEventListener('click', exportAccountingCSV);
+    document.querySelector('#acc-export-pdf').addEventListener('click', exportAccountingPDF);
+    document.querySelector('#acc-monthly').addEventListener('click', printMonthlySummary);
+  }
+
+  /* === Export CSV (blob natif, fonctionne partout) === */
+  function exportAccountingCSV() {
+    const q       = (document.querySelector('#acc-search').value || '').trim().toLowerCase();
+    const method  = document.querySelector('#acc-method').value;
+    const from    = document.querySelector('#acc-from').value;
+    const to      = document.querySelector('#acc-to').value;
+    const data = allAccEntries.filter(e => {
+      if (method && e.payment_method !== method) return false;
+      if (from && isoDate(e.paid_at) < from) return false;
+      if (to   && isoDate(e.paid_at) > to)   return false;
+      if (q) {
+        const blob = [e.client_name, e.client_phone, e.order_id, e.invoice_id].filter(Boolean).join(' ').toLowerCase();
+        if (blob.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+
+    const headers = ['Date', 'Client', 'Téléphone', 'N° Commande', 'N° Facture', 'Montant payé', 'Total commande', 'Solde', 'Mode', 'Statut'];
+    const rows = data.map(e => {
+      const orderTotal = Number(e.order_total) || 0;
+      const paid = Number(e.amount_paid) || 0;
+      const balance = Math.max(0, orderTotal - paid);
+      return [
+        fmt(e.paid_at),
+        e.client_name || '',
+        e.client_phone || '',
+        e.order_id || '',
+        e.invoice_id || '',
+        paid,
+        orderTotal,
+        balance,
+        e.payment_method || '',
+        e.status || 'recorded'
+      ];
+    });
+
+    function csvEscape(v) {
+      const s = String(v == null ? '' : v);
+      if (/[",\n;]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+      return s;
+    }
+    const csv = '﻿' + // BOM UTF-8 pour Excel
+      [headers.map(csvEscape).join(';')]
+      .concat(rows.map(r => r.map(csvEscape).join(';')))
+      .join('\r\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'hbt-comptabilite-' + todayISO() + '.csv';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast('✓ CSV exporté (' + data.length + ' lignes)', '#2e8a56');
+  }
+
+  /* === Export PDF (html2pdf si dispo, sinon Imprimer) === */
+  function buildAccountingPdfHTML(entries, periodLabel) {
+    const total = entries.reduce((s, e) => s + (Number(e.amount_paid) || 0), 0);
+    const rows = entries.map(e => {
+      const orderTotal = Number(e.order_total) || 0;
+      const paid = Number(e.amount_paid) || 0;
+      const balance = Math.max(0, orderTotal - paid);
+      return `<tr>
+        <td style="padding:10px;border-bottom:1px solid #e8dcbf;font-size:9.5pt;">${fmt(e.paid_at)}</td>
+        <td style="padding:10px;border-bottom:1px solid #e8dcbf;font-size:9.5pt;"><strong>${escapeHtml(e.client_name || '—')}</strong></td>
+        <td style="padding:10px;border-bottom:1px solid #e8dcbf;font-size:9pt;font-family:Menlo,monospace;color:#c89968;">${escapeHtml(e.order_id || '—')}</td>
+        <td style="padding:10px;border-bottom:1px solid #e8dcbf;font-size:9pt;">${escapeHtml(e.invoice_id || '—')}</td>
+        <td style="padding:10px;border-bottom:1px solid #e8dcbf;font-size:9.5pt;text-align:right;font-weight:600;color:#2e8a56;">${accFmt(paid)}</td>
+        <td style="padding:10px;border-bottom:1px solid #e8dcbf;font-size:9.5pt;">${escapeHtml(e.payment_method || '—')}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="6" style="padding:30px;text-align:center;color:#7a6f5e;font-style:italic;">Aucun paiement</td></tr>';
+
+    return `
+<div style="width:210mm;min-height:297mm;padding:18mm 16mm;background:#fbf7ed;color:#1a1410;font-family:'Inter',Helvetica,Arial,sans-serif;box-sizing:border-box;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #c89968;padding-bottom:16px;margin-bottom:24px;">
+    <div>
+      <div style="font-family:'Playfair Display',Georgia,serif;font-size:22pt;color:#1a1410;font-weight:500;letter-spacing:1px;">HOME BY <em style="color:#c89968;font-style:italic;font-weight:600;">TIKA</em></div>
+      <div style="color:#7a6f5e;font-size:9pt;letter-spacing:3px;text-transform:uppercase;margin-top:4px;">Comptabilité</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="background:#1a1410;color:#c89968;padding:8px 18px;font-size:12pt;font-weight:700;letter-spacing:3px;display:inline-block;">RAPPORT</div>
+      <div style="font-size:10pt;margin-top:8px;color:#1a1410;">${escapeHtml(periodLabel)}</div>
+      <div style="color:#7a6f5e;font-size:9pt;margin-top:2px;">Édité le ${new Date().toLocaleDateString('fr-FR')}</div>
+    </div>
+  </div>
+  <div style="background:rgba(200,153,104,0.07);border-left:3px solid #c89968;padding:14px 18px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;">
+    <div><div style="color:#c89968;font-size:9pt;letter-spacing:2px;text-transform:uppercase;font-weight:700;">Total encaissé</div>
+      <div style="font-family:'Playfair Display',serif;font-size:18pt;color:#1a1410;font-weight:700;margin-top:4px;">${accFmt(total)}</div></div>
+    <div style="text-align:right;color:#7a6f5e;font-size:10pt;">${entries.length} paiement${entries.length > 1 ? 's' : ''}</div>
+  </div>
+  <table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="background:#1a1410;color:#c89968;">
+      <th style="padding:11px;text-align:left;font-size:8.5pt;letter-spacing:1.5px;text-transform:uppercase;">Date</th>
+      <th style="padding:11px;text-align:left;font-size:8.5pt;letter-spacing:1.5px;text-transform:uppercase;">Client</th>
+      <th style="padding:11px;text-align:left;font-size:8.5pt;letter-spacing:1.5px;text-transform:uppercase;">N° Cmd</th>
+      <th style="padding:11px;text-align:left;font-size:8.5pt;letter-spacing:1.5px;text-transform:uppercase;">N° Fac</th>
+      <th style="padding:11px;text-align:right;font-size:8.5pt;letter-spacing:1.5px;text-transform:uppercase;">Montant</th>
+      <th style="padding:11px;text-align:left;font-size:8.5pt;letter-spacing:1.5px;text-transform:uppercase;">Mode</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div style="border-top:1px solid #e8dcbf;padding-top:14px;margin-top:24px;text-align:center;color:#7a6f5e;font-size:8.5pt;letter-spacing:1px;">
+    HOME BY TIKA · Songon, Cité la Grâce — Abidjan · Document comptable interne
+  </div>
+</div>`;
+  }
+
+  async function exportAccountingPDF() {
+    const filtered = getFilteredAccountingEntries();
+    const fromDate = document.querySelector('#acc-from').value || 'début';
+    const toDate   = document.querySelector('#acc-to').value || 'aujourd\'hui';
+    const periodLabel = 'Du ' + fromDate + ' au ' + toDate;
+    const html = buildAccountingPdfHTML(filtered, periodLabel);
+
+    if (!window.html2pdf) {
+      // Fallback : ouvrir une fenêtre pour Impression → Enregistrer PDF
+      const w = window.open('', '_blank');
+      if (!w) { alert('Pop-up bloquée. Autorisez les pop-ups.'); return; }
+      w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Comptabilité — ' + periodLabel + '</title><style>@page{margin:0;size:A4;}body{margin:0;}</style></head><body>' + html + '<script>window.onload=function(){setTimeout(function(){window.print();},300);};</script></body></html>');
+      w.document.close();
+      return;
+    }
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    container.style.position = 'fixed'; container.style.top = '-99999px';
+    document.body.appendChild(container);
+    try {
+      await window.html2pdf().from(container.firstElementChild).set({
+        margin: 0, filename: 'hbt-comptabilite-' + todayISO() + '.pdf',
+        image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: { scale: 2, backgroundColor: '#fbf7ed' },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      }).save();
+      toast('✓ PDF exporté', '#2e8a56');
+    } catch (e) {
+      toast('❌ Erreur PDF : ' + e.message, '#c45b5b');
+    } finally {
+      container.remove();
+    }
+  }
+
+  function getFilteredAccountingEntries() {
+    const q       = (document.querySelector('#acc-search').value || '').trim().toLowerCase();
+    const method  = document.querySelector('#acc-method').value;
+    const from    = document.querySelector('#acc-from').value;
+    const to      = document.querySelector('#acc-to').value;
+    return allAccEntries.filter(e => {
+      if (method && e.payment_method !== method) return false;
+      if (from && isoDate(e.paid_at) < from) return false;
+      if (to   && isoDate(e.paid_at) > to)   return false;
+      if (q) {
+        const blob = [e.client_name, e.client_phone, e.order_id, e.invoice_id].filter(Boolean).join(' ').toLowerCase();
+        if (blob.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+  }
+
+  /* === Résumé mensuel imprimable === */
+  function printMonthlySummary() {
+    const monthStart = firstOfMonth();
+    const monthEntries = allAccEntries.filter(e => isoDate(e.paid_at) >= monthStart);
+    const monthLabel = new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    const html = buildAccountingPdfHTML(monthEntries, 'Mois de ' + monthLabel);
+    const w = window.open('', '_blank');
+    if (!w) { alert('Pop-up bloquée.'); return; }
+    w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Comptabilité ' + monthLabel + '</title><style>@page{margin:0;size:A4;}body{margin:0;}</style></head><body>' + html + '<script>window.onload=function(){setTimeout(function(){window.print();},300);};</script></body></html>');
+    w.document.close();
   }
 
   /* ============================================================
