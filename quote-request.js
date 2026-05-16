@@ -306,7 +306,9 @@
 
     // Tentative Supabase
     const supaOk = (window.HBT_CONFIG && window.HBT_CONFIG.isSupabaseReady && window.HBT_CONFIG.isSupabaseReady());
-    let saved = false;
+    let savedToSupabase = false;
+    let supabaseError = null;
+
     if (supaOk) {
       try {
         const res = await fetch(window.HBT_CONFIG.supabase.url + '/rest/v1/quote_requests', {
@@ -320,24 +322,51 @@
           body: JSON.stringify(payload)
         });
         if (res.ok) {
-          saved = true;
+          savedToSupabase = true;
         } else {
           const txt = await res.text();
-          console.warn('[Quote] Supabase ' + res.status, txt.slice(0, 200));
+          if (res.status === 404 || /relation.*quote_requests.*does not exist/i.test(txt)) {
+            supabaseError = 'TABLE_MISSING';
+          } else {
+            supabaseError = 'HTTP_' + res.status;
+          }
+          console.error('[Quote] Supabase ' + res.status, txt.slice(0, 300));
         }
       } catch (e) {
-        console.warn('[Quote] Réseau Supabase :', e.message);
+        supabaseError = 'NETWORK';
+        console.error('[Quote] Réseau Supabase :', e.message);
       }
     }
-    // Fallback : sauvegarde locale (toujours utile en backup)
-    try {
-      const key = 'home-by-tika-quotes';
-      const list = JSON.parse(localStorage.getItem(key) || '[]');
-      list.push(Object.assign({}, payload, { created_at: new Date().toISOString() }));
-      localStorage.setItem(key, JSON.stringify(list));
-    } catch (e) {}
 
-    // Affichage succès (toujours, même si Supabase failed — l'utilisateur a son ref + lien WhatsApp)
+    // SI Supabase est configuré ET a échoué → on AFFICHE l'erreur, on bloque l'envoi
+    if (supaOk && !savedToSupabase) {
+      submit.disabled = false;
+      submit.textContent = 'Envoyer ma demande';
+      let msg;
+      if (supabaseError === 'TABLE_MISSING') {
+        msg = '❌ La table <code>quote_requests</code> n\'existe pas encore dans Supabase. Demandez à l\'admin d\'exécuter <code>setup-quote-requests.sql</code>. En attendant, contactez-nous directement sur WhatsApp ci-dessous.';
+      } else if (supabaseError === 'NETWORK') {
+        msg = '❌ Pas de connexion Internet. Réessayez ou contactez-nous sur WhatsApp.';
+      } else {
+        msg = '❌ Erreur d\'enregistrement (' + supabaseError + '). Contactez-nous directement sur WhatsApp.';
+      }
+      errBox.innerHTML = msg + '<br><br><a href="' + buildWaLink(data, ref) + '" target="_blank" rel="noopener" style="display:inline-block;background:#25d366;color:#fff;padding:0.7rem 1.4rem;border-radius:2px;font-weight:700;text-decoration:none;font-size:0.82rem;letter-spacing:1.5px;text-transform:uppercase;">Contacter sur WhatsApp</a>';
+      errBox.style.display = 'block';
+      return;
+    }
+
+    // SI Supabase pas configuré → fallback localStorage légitime (mode dégradé doc)
+    if (!supaOk) {
+      try {
+        const key = 'home-by-tika-quotes';
+        const list = JSON.parse(localStorage.getItem(key) || '[]');
+        list.push(Object.assign({}, payload, { created_at: new Date().toISOString() }));
+        localStorage.setItem(key, JSON.stringify(list));
+        console.warn('[Quote] Supabase non configuré — sauvegarde locale uniquement (visible seulement sur cet appareil)');
+      } catch (e) {}
+    }
+
+    // Succès — affichage écran de confirmation
     document.getElementById('hbt-q-success-id').textContent = ref;
     document.getElementById('hbt-q-success-wa').href = buildWaLink(data, ref);
     document.getElementById('hbt-q-form').style.display = 'none';
@@ -347,11 +376,7 @@
     submit.disabled = false;
     submit.textContent = 'Envoyer ma demande';
 
-    if (!saved && supaOk) {
-      // L'envoi a échoué côté Supabase mais on a localStorage. On informe sans bloquer.
-      console.warn('[Quote] Sauvegarde locale uniquement (Supabase indisponible)');
-    }
-    if (window.HBT && window.HBT.track) window.HBT.track('quote_request', { ref: ref, supabase: saved });
+    if (window.HBT && window.HBT.track) window.HBT.track('quote_request', { ref: ref, supabase: savedToSupabase });
   }
 
   /* ===== Wire global ===== */

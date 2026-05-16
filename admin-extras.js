@@ -1191,34 +1191,61 @@
     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);">Chargement…</td></tr>';
 
     const supaOk = (window.HBT_CONFIG && window.HBT_CONFIG.isSupabaseReady && window.HBT_CONFIG.isSupabaseReady());
-    if (supaOk) {
-      try {
-        const res = await fetch(window.HBT_CONFIG.supabase.url + '/rest/v1/quote_requests?select=*&order=created_at.desc', {
-          headers: {
-            apikey: window.HBT_CONFIG.supabase.anonKey,
-            Authorization: 'Bearer ' + window.HBT_CONFIG.supabase.anonKey
-          },
-          cache: 'no-store'
-        });
-        if (res.ok) {
-          allQuotes = await res.json();
-          if (line) { line.innerHTML = '✓ Connecté à Supabase — ' + allQuotes.length + ' demande(s)'; line.style.color = '#2e8a56'; }
-        } else {
-          const txt = await res.text();
-          console.warn('[QuoteRequests] Supabase ' + res.status, txt);
-          if (line) { line.innerHTML = '⚠ Supabase erreur ' + res.status + ' — fallback localStorage'; line.style.color = '#c89968'; }
-          loadFromLocalStorage();
-        }
-      } catch (e) {
-        console.warn('[QuoteRequests] Réseau :', e.message);
-        if (line) { line.innerHTML = '⚠ Réseau indisponible — fallback localStorage'; line.style.color = '#c89968'; }
-        loadFromLocalStorage();
-      }
-    } else {
-      if (line) { line.innerHTML = '⚠ Supabase non configuré — affichage localStorage uniquement'; line.style.color = '#c89968'; }
+
+    // CAS 1 : Supabase pas configuré du tout → localStorage légitimement (mode dégradé)
+    if (!supaOk) {
+      if (line) { line.innerHTML = '⚠ Supabase non configuré (config.js) — affichage localStorage'; line.style.color = '#c89968'; }
       loadFromLocalStorage();
+      renderQuoteRows();
+      return;
     }
-    renderQuoteRows();
+
+    // CAS 2 : Supabase configuré → on lit. Si erreur, on AFFICHE l'erreur (pas de silent fallback)
+    try {
+      const res = await fetch(window.HBT_CONFIG.supabase.url + '/rest/v1/quote_requests?select=*&order=created_at.desc', {
+        headers: {
+          apikey: window.HBT_CONFIG.supabase.anonKey,
+          Authorization: 'Bearer ' + window.HBT_CONFIG.supabase.anonKey
+        },
+        cache: 'no-store'
+      });
+      if (res.ok) {
+        allQuotes = await res.json();
+        if (line) { line.innerHTML = '✓ Connecté à Supabase — ' + allQuotes.length + ' demande(s)'; line.style.color = '#2e8a56'; }
+        renderQuoteRows();
+        return;
+      }
+      // Erreur HTTP — analyse explicite pour 404 (table manquante)
+      const txt = await res.text();
+      let errMsg, errDetail;
+      if (res.status === 404 || /relation.*quote_requests.*does not exist/i.test(txt) || /not.*found/i.test(txt)) {
+        errMsg = '❌ Table <code>quote_requests</code> introuvable dans Supabase';
+        errDetail = `
+          <div style="background:rgba(196,91,91,0.08);border-left:3px solid #c45b5b;padding:1rem 1.2rem;margin-top:0.8rem;border-radius:2px;color:var(--ivory-dim);font-size:0.92rem;line-height:1.6;">
+            <strong style="color:#e88c8c;display:block;margin-bottom:0.5rem;">Pour corriger :</strong>
+            <ol style="margin:0;padding-left:1.4rem;">
+              <li>Ouvrez votre projet sur <a href="https://supabase.com" target="_blank" style="color:var(--gold);">supabase.com</a></li>
+              <li>Menu de gauche → <strong>SQL Editor</strong> → <strong>New query</strong></li>
+              <li>Copiez le contenu du fichier <code style="background:rgba(200,153,104,0.12);padding:0.15rem 0.4rem;border-radius:2px;color:var(--gold);">setup-quote-requests.sql</code></li>
+              <li>Collez dans Supabase → <strong>Run</strong></li>
+              <li>Revenez ici, cliquez <strong>Rafraîchir</strong></li>
+            </ol>
+          </div>`;
+      } else {
+        errMsg = '❌ Erreur Supabase ' + res.status;
+        errDetail = '<pre style="background:var(--bg-soft);padding:0.8rem;color:#e88c8c;font-size:0.78rem;overflow-x:auto;border-radius:2px;margin-top:0.6rem;">' + escapeHtml(txt.slice(0, 500)) + '</pre>';
+      }
+      if (line) { line.innerHTML = errMsg + errDetail; line.style.color = '#e88c8c'; }
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:1.4rem;">— Aucune donnée chargée (voir l\'erreur ci-dessus) —</td></tr>';
+      console.error('[QuoteRequests] Supabase ' + res.status, txt);
+    } catch (e) {
+      console.error('[QuoteRequests] Réseau :', e.message);
+      if (line) {
+        line.innerHTML = '❌ Erreur réseau — vérifiez votre connexion Internet<br><span style="font-size:0.8rem;color:var(--muted);">' + escapeHtml(e.message) + '</span>';
+        line.style.color = '#e88c8c';
+      }
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:1.4rem;">— Réseau indisponible —</td></tr>';
+    }
   }
 
   function loadFromLocalStorage() {
