@@ -269,11 +269,9 @@
   }
 
   /* ========== UI : section admin ========== */
-  function docSectionHTML() {
+  /* Contenu du formulaire (utilisé seul dans la nouvelle section) */
+  function docSectionInnerHTML() {
     return `
-      <h2>Devis & Factures</h2>
-      <p class="lede">Créer un document professionnel A4 (PDF premium ivoire/noir/doré). Le rédaction des conditions/notes apparaît automatiquement dans le PDF généré.</p>
-
       <div class="hbt-doc-form">
         <div>
           <label>Type de document</label>
@@ -613,17 +611,15 @@
   }
 
   /* ========== Boot ========== */
-  async function injectTab() {
-    // Trouve le système d'onglets existant (admin-extras.js)
+  /* injectTab : essaie d'injecter l'onglet "Devis & Factures" dans le DOM.
+     Robuste : utilise un MutationObserver qui se déclenche dès que le
+     conteneur .hbt-extras-tabs apparaît dans le DOM. Fonctionne quel que
+     soit l'ordre/timing de chargement d'admin-extras.js. */
+  function tryInjectNow() {
     const tabs = document.querySelector('.hbt-extras-tabs');
-    const content = document.querySelector('#hbt-extras-content');
-    if (!tabs || !content) {
-      console.warn('[invoice-pdf] hbt-extras-tabs introuvable — admin-extras.js non chargé ?');
-      return;
-    }
-    if (tabs.querySelector('[data-tab="docs"]')) return;  // déjà injecté
+    if (!tabs) return false;
+    if (tabs.querySelector('[data-tab="docs"]')) return true;  // déjà injecté
 
-    // Ajoute l'onglet
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'hbt-extras-tab';
@@ -637,24 +633,158 @@
       showDocsTab();
     });
 
-    console.log('[invoice-pdf] Onglet "Devis & Factures" injecté');
+    console.log('[invoice-pdf] Onglet "Devis & Factures" injecté ✓');
+    return true;
+  }
+
+  function injectTab() {
+    // Essai immédiat
+    if (tryInjectNow()) return;
+    // Sinon, observe le DOM pour réessayer dès que .hbt-extras-tabs apparaît
+    if (!('MutationObserver' in window)) {
+      // Fallback ancien : retry par intervalle
+      let tries = 0;
+      const iv = setInterval(() => {
+        if (tryInjectNow() || ++tries > 60) clearInterval(iv);
+      }, 250);
+      return;
+    }
+    const observer = new MutationObserver(() => {
+      if (tryInjectNow()) observer.disconnect();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    // Sécurité : déconnecte après 60s (jamais d'observer immortel)
+    setTimeout(() => observer.disconnect(), 60000);
   }
 
   async function showDocsTab() {
     const content = document.querySelector('#hbt-extras-content');
     if (!content) return;
     content.classList.add('hbt-invoice-section');
-    content.innerHTML = docSectionHTML();
+
+    // Header avec 2 sections rapides + formulaire en-dessous
+    content.innerHTML = `
+      <h2>Devis & Factures</h2>
+      <p class="lede">Espace dédié à la facturation. Sélectionnez une commande payée pour générer la facture en 1 clic, ou créez un devis/facture manuellement ci-dessous.</p>
+
+      <!-- Section 1 : Commandes payées (prêtes à facturer) -->
+      <div style="margin-bottom:1.6rem;background:rgba(46,138,86,0.06);border-left:3px solid #2e8a56;padding:1rem 1.2rem;border-radius:2px;">
+        <strong style="color:#5cc488;font-size:0.78rem;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;display:block;margin-bottom:0.7rem;">✓ Commandes payées — prêtes à facturer</strong>
+        <div id="hbt-paid-orders" style="font-size:0.88rem;color:var(--ivory-dim);">Chargement…</div>
+      </div>
+
+      <!-- Section 2 : Factures déjà générées -->
+      <div style="margin-bottom:1.8rem;background:rgba(200,153,104,0.06);border-left:3px solid var(--gold);padding:1rem 1.2rem;border-radius:2px;">
+        <strong style="color:var(--gold);font-size:0.78rem;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;display:block;margin-bottom:0.7rem;">📄 Factures déjà générées</strong>
+        <div id="hbt-existing-invoices" style="font-size:0.88rem;color:var(--ivory-dim);">Chargement…</div>
+      </div>
+
+      <!-- Section 3 : Formulaire (séparateur + form complet) -->
+      <div style="border-top:1px solid var(--line);padding-top:1.4rem;margin-top:0.4rem;">
+        <h3 style="font-family:var(--serif);color:var(--gold);font-size:1.15rem;margin:0 0 0.5rem;">Créer un nouveau document</h3>
+        <p style="color:var(--muted);font-size:0.88rem;margin-bottom:1.2rem;">Devis ou facture — toutes les valeurs sont modifiables avant génération.</p>
+        ${docSectionInnerHTML()}
+      </div>
+    `;
+
     currentDoc = newEmptyDoc('quote');
     $('#doc-id').value = currentDoc.id;
     $('#doc-date').value = currentDoc.date;
     renderItems();
     bindForm();
     loadOrdersForSelect();
+    loadPaidOrders();
+    loadExistingInvoices();
     // Charge Quill en arrière-plan
     initQuill().catch(e => console.warn('[invoice-pdf] Quill:', e.message));
     // Charge html2pdf en arrière-plan
     if (!window.html2pdf) loadScript(LIBS.html2pdf).catch(e => console.warn('[invoice-pdf] html2pdf:', e.message));
+  }
+
+  /* === Charge les commandes payées (payment_confirmed=true sans facture) === */
+  async function loadPaidOrders() {
+    const box = document.querySelector('#hbt-paid-orders');
+    if (!box) return;
+    if (!window.OrderService) { box.textContent = 'Service indisponible.'; return; }
+    try {
+      const all = await window.OrderService.list();
+      const paid = (all || []).filter(o => o.payment_confirmed && !o.invoice_id);
+      if (paid.length === 0) {
+        box.innerHTML = '<em style="color:var(--muted);">Aucune commande payée en attente de facture.</em>';
+        return;
+      }
+      box.innerHTML = paid.map(o => `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:0.8rem;padding:0.55rem 0;border-bottom:1px solid rgba(46,138,86,0.15);flex-wrap:wrap;">
+          <div style="flex:1;min-width:200px;">
+            <strong style="font-family:Menlo,monospace;color:#5cc488;">${escapeHtml(o.id)}</strong>
+            <span style="color:var(--muted);font-size:0.85rem;"> · ${escapeHtml(o.customer_name || '?')}</span>
+            ${o.total ? '<span style="color:var(--ivory-dim);font-size:0.85rem;"> · ' + fcfa(o.total) + '</span>' : ''}
+          </div>
+          <button type="button" data-paid-order="${escapeHtml(o.id)}" class="hbt-btn-primary" style="padding:0.45rem 0.9rem;font-size:0.72rem;">Générer facture</button>
+        </div>
+      `).join('');
+      // Délégation : clic Générer facture
+      box.querySelectorAll('[data-paid-order]').forEach(b => {
+        b.addEventListener('click', () => {
+          // Bascule en mode facture + sélectionne la commande
+          const sel = $('#doc-order');
+          const typeSel = $('#doc-type');
+          if (typeSel) { typeSel.value = 'invoice'; typeSel.dispatchEvent(new Event('change')); }
+          if (sel) {
+            sel.value = b.dataset.paidOrder;
+            sel.dispatchEvent(new Event('change'));
+          }
+          // Scroll vers le formulaire
+          $('#doc-id').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+    } catch (e) {
+      box.textContent = 'Erreur : ' + e.message;
+    }
+  }
+
+  /* === Charge les factures déjà générées (orders avec invoice_id) === */
+  async function loadExistingInvoices() {
+    const box = document.querySelector('#hbt-existing-invoices');
+    if (!box) return;
+    if (!window.OrderService) { box.textContent = 'Service indisponible.'; return; }
+    try {
+      const all = await window.OrderService.list();
+      const invoiced = (all || []).filter(o => o.invoice_id);
+      if (invoiced.length === 0) {
+        box.innerHTML = '<em style="color:var(--muted);">Aucune facture encore générée.</em>';
+        return;
+      }
+      box.innerHTML = invoiced.map(o => `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:0.8rem;padding:0.55rem 0;border-bottom:1px solid rgba(200,153,104,0.15);flex-wrap:wrap;">
+          <div style="flex:1;min-width:200px;">
+            <strong style="font-family:Menlo,monospace;color:var(--gold);">${escapeHtml(o.invoice_id)}</strong>
+            <span style="color:var(--muted);font-size:0.85rem;"> · ${escapeHtml(o.customer_name || '?')}</span>
+            <span style="color:var(--ivory-dim);font-size:0.8rem;"> · Cmd: ${escapeHtml(o.id)}</span>
+          </div>
+          <div style="display:flex;gap:0.4rem;">
+            <button type="button" data-regen-invoice="${escapeHtml(o.id)}" style="background:transparent;border:1px solid var(--gold);color:var(--gold);padding:0.4rem 0.8rem;font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:2px;">Re-télécharger</button>
+          </div>
+        </div>
+      `).join('');
+      // Délégation re-télécharger
+      box.querySelectorAll('[data-regen-invoice]').forEach(b => {
+        b.addEventListener('click', async () => {
+          // Précharge la commande en facture et déclenche le download
+          const sel = $('#doc-order');
+          const typeSel = $('#doc-type');
+          if (typeSel) { typeSel.value = 'invoice'; typeSel.dispatchEvent(new Event('change')); }
+          if (sel) {
+            sel.value = b.dataset.regenInvoice;
+            sel.dispatchEvent(new Event('change'));
+          }
+          // Attend que les champs se remplissent puis télécharge
+          setTimeout(() => downloadPdf(), 500);
+        });
+      });
+    } catch (e) {
+      box.textContent = 'Erreur : ' + e.message;
+    }
   }
 
   /* ========== Init ========== */
