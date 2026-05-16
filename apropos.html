@@ -245,6 +245,7 @@
 <script src="media-manifest.js"></script>
 <script src="i18n.js"></script>
 <script src="script.js"></script>
+<script src="quote-request.js"></script>
 
 <script>
 /* =========================================================
@@ -259,70 +260,98 @@
    sable→chocolat) défini dans styles.css reste affiché.
    ========================================================= */
 (function () {
-  /* Guard global : une fois l'image atelier appliquée, on ne la
-     retouche plus. Empêche le flicker / disparition / clignotement
-     causé par les multiples sources qui se déclenchaient à la suite. */
-  if (window._hbtAtelierState) return;
-  window._hbtAtelierState = { applied: false, currentUrl: null };
+  /* ATELIER IMAGE — version anti-wipe v6.
+     Le vrai bug : script.js applySiteImages() peut effacer l'image
+     si CloudCache.siteAtelier est vide. Cette version :
+     1) Met aussi à jour CloudCache.siteAtelier après load → script.js ne wipe plus
+     2) MutationObserver re-applique si .story-image est modifiée par autrui
+     3) Polling 800ms × 12 (~10s) pour CloudCache async
+  */
+  const MARK = 'data-hbt-atelier-applied';
+
+  function realApply(url) {
+    document.querySelectorAll('.story-image').forEach(el => {
+      // Évite de ré-écrire si déjà la même URL (pas de flicker)
+      if (el.getAttribute(MARK) === url) return;
+      el.style.backgroundImage = 'url("' + url + '")';
+      el.classList.add('has-image');
+      el.setAttribute(MARK, url);
+    });
+    // CRITIQUE : injecte dans CloudCache pour que script.js ne wipe pas
+    if (!window.CloudCache) window.CloudCache = {};
+    window.CloudCache.siteAtelier = url;
+  }
 
   function applyAtelierImage(url) {
     if (!url) return;
-    // Si on tente d'appliquer la MÊME url qui est déjà là → no-op
-    if (window._hbtAtelierState.applied && window._hbtAtelierState.currentUrl === url) return;
-    // Si une image différente était déjà appliquée → on ne re-render pas
-    if (window._hbtAtelierState.applied) return;
+    // Si déjà appliquée avec la même URL, on sort
+    const first = document.querySelector('.story-image');
+    if (first && first.getAttribute(MARK) === url) return;
 
+    // Probe pour vérifier que l'image existe
     const probe = new Image();
     probe.onload = function () {
-      // Re-vérification après chargement : éviter race condition entre
-      // plusieurs sources qui auraient toutes lancé leur probe en parallèle.
-      if (window._hbtAtelierState.applied) return;
-      window._hbtAtelierState.applied = true;
-      window._hbtAtelierState.currentUrl = url;
-      document.querySelectorAll('.story-image').forEach(el => {
-        el.style.backgroundImage = `url("${url}")`;
-        el.classList.add('has-image');
-      });
-      if (window.HBT_DEBUG_MEDIA) console.log('[Atelier] Image appliquée définitivement :', url);
+      realApply(url);
+      if (window.HBT_DEBUG_MEDIA) console.log('[Atelier] ✓ Image appliquée :', url);
     };
     probe.onerror = function () {
-      if (window.HBT_DEBUG_MEDIA) console.warn('[Atelier] Image absente :', url);
+      if (window.HBT_DEBUG_MEDIA) console.warn('[Atelier] ⚠ URL invalide :', url);
     };
     probe.src = url;
   }
 
-  function loadAtelier() {
-    // Si déjà appliquée, on sort tout de suite (économise des requêtes)
-    if (window._hbtAtelierState.applied) return;
+  function tryLoad() {
+    // Test toutes les sources, on prend la première qui retourne une URL
+    const sources = [
+      function () { return window.CloudCache && window.CloudCache.siteAtelier; },
+      function () { return typeof window.HBT_siteImageUrl === 'function' ? window.HBT_siteImageUrl('atelier', { width: 1200, crop: 'fill' }) : null; },
+      function () { return typeof window.HBT_mediaUrl === 'function' ? window.HBT_mediaUrl('site', 'atelier', { width: 1200, crop: 'fill', gravity: 'auto' }) : null; }
+    ];
+    for (let i = 0; i < sources.length; i++) {
+      const u = sources[i]();
+      if (u) { applyAtelierImage(u); return true; }
+    }
+    return false;
+  }
 
-    // 1) CloudCache (peuplé par loadCloudCache de script.js — souvent prioritaire)
-    if (window.CloudCache && window.CloudCache.siteAtelier) {
-      return applyAtelierImage(window.CloudCache.siteAtelier);
-    }
-    // 2) URL conventionnelle via le système média HBT
-    if (typeof window.HBT_mediaUrl === 'function') {
-      const url = window.HBT_mediaUrl('site', 'atelier', {
-        width: 1200, crop: 'fill', gravity: 'auto'
+  /* Watcher : si quelqu'un (script.js applySiteImages) efface le backgroundImage
+     alors que nous l'avons marqué appliqué → on le restaure. */
+  function startWatchers() {
+    if (!('MutationObserver' in window)) return;
+    document.querySelectorAll('.story-image').forEach(el => {
+      const mo = new MutationObserver(function () {
+        const applied = el.getAttribute(MARK);
+        if (!applied) return;
+        const bg = el.style.backgroundImage;
+        if (!bg || bg === 'none' || bg === '""' || bg.indexOf(applied) === -1) {
+          // Restauration
+          el.style.backgroundImage = 'url("' + applied + '")';
+          el.classList.add('has-image');
+          if (window.HBT_DEBUG_MEDIA) console.log('[Atelier] ↺ Restauré après wipe externe');
+        }
       });
-      applyAtelierImage(url);
-    }
-    // 3) Manifest (si renseigné)
-    if (typeof window.HBT_siteImageUrl === 'function') {
-      const u = window.HBT_siteImageUrl('atelier', { width: 1200, crop: 'fill' });
-      if (u) applyAtelierImage(u);
-    }
+      mo.observe(el, { attributes: true, attributeFilter: ['style', 'class'] });
+    });
+  }
+
+  function boot() {
+    tryLoad();
+    startWatchers();
+    // Polling pour rattraper CloudCache qui se peuple async (loadCloudCache)
+    let tries = 0;
+    const iv = setInterval(function () {
+      if (++tries > 12) { clearInterval(iv); return; }
+      const el = document.querySelector('.story-image');
+      if (el && !el.getAttribute(MARK)) tryLoad();
+      else if (el && el.getAttribute(MARK)) clearInterval(iv);
+    }, 800);
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', loadAtelier);
+    document.addEventListener('DOMContentLoaded', boot);
   } else {
-    loadAtelier();
+    boot();
   }
-  // Re-essai UNE seule fois après 2s pour CloudCache tardif — uniquement si pas
-  // encore appliqué (sinon ce serait du flicker).
-  setTimeout(() => {
-    if (!window._hbtAtelierState.applied) loadAtelier();
-  }, 2000);
 })();
 </script>
 </body>

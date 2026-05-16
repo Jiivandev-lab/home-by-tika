@@ -83,6 +83,44 @@ CREATE TABLE IF NOT EXISTS products (
 ALTER TABLE products ADD COLUMN IF NOT EXISTS folder TEXT DEFAULT '';
 ALTER TABLE products ADD COLUMN IF NOT EXISTS media_type TEXT DEFAULT 'image';
 
+
+-- ===================== TABLE QUOTE_REQUESTS (demandes de devis) =====================
+CREATE TABLE IF NOT EXISTS quote_requests (
+  id              TEXT PRIMARY KEY,                 -- HBTQ-YYMMDD-XXXX
+  customer_name   TEXT NOT NULL,
+  phone           TEXT NOT NULL,
+  email           TEXT DEFAULT '',
+  location        TEXT DEFAULT '',                  -- pays / ville
+  product         TEXT DEFAULT '',                  -- nom produit concerné
+  dimensions      TEXT DEFAULT '',
+  wood            TEXT DEFAULT '',                  -- essence souhaitée
+  budget          TEXT DEFAULT '',
+  message         TEXT DEFAULT '',
+  status          TEXT DEFAULT 'new',               -- new, discussion, quote_sent, confirmed, refused
+  notes_admin     TEXT DEFAULT '',                  -- notes internes admin
+  history         JSONB DEFAULT '[]'::jsonb,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE quote_requests ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public insert quote_requests" ON quote_requests;
+CREATE POLICY "Public insert quote_requests"
+  ON quote_requests FOR INSERT TO anon WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public read quote_requests" ON quote_requests;
+CREATE POLICY "Public read quote_requests"
+  ON quote_requests FOR SELECT TO anon USING (true);
+
+DROP POLICY IF EXISTS "Public update quote_requests" ON quote_requests;
+CREATE POLICY "Public update quote_requests"
+  ON quote_requests FOR UPDATE TO anon USING (true);
+
+DROP POLICY IF EXISTS "Public delete quote_requests" ON quote_requests;
+CREATE POLICY "Public delete quote_requests"
+  ON quote_requests FOR DELETE TO anon USING (true);
+
 -- Index pour requêtes par catégorie (boutique filter)
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
 CREATE INDEX IF NOT EXISTS idx_products_published ON products(published);

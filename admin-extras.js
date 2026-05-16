@@ -1091,6 +1091,7 @@
         <button type="button" class="hbt-extras-tab active" data-tab="orders">Gestion des commandes</button>
         <button type="button" class="hbt-extras-tab" data-tab="new-product">+ Nouveau produit</button>
         <button type="button" class="hbt-extras-tab" data-tab="docs">Devis &amp; Factures</button>
+        <button type="button" class="hbt-extras-tab" data-tab="requests">Demandes de devis</button>
       </div>
       <div id="hbt-extras-content"></div>
     `;
@@ -1127,14 +1128,249 @@
       loadOrders();
     } else if (tab === 'docs') {
       content.classList.add('hbt-invoice-section');
-      // Si invoice-pdf.js (version enrichie avec Quill) est dispo → l'utiliser
-      // Sinon → rendu inline IMMÉDIAT (form fonctionnel sans CDN)
       if (typeof window.HBT_renderInvoiceTab === 'function') {
         window.HBT_renderInvoiceTab(content);
       } else {
         renderDocsTabInline(content);
       }
+    } else if (tab === 'requests') {
+      content.classList.remove('hbt-invoice-section');
+      renderQuoteRequestsTab(content);
     }
+  }
+
+  /* ============================================================
+     DEMANDES DE DEVIS (quote_requests Supabase)
+     ============================================================ */
+  const QUOTE_STATUSES = [
+    { key: 'new',         label: 'Nouveau',       color: '#8a7860' },
+    { key: 'discussion',  label: 'En discussion', color: '#b48249' },
+    { key: 'quote_sent',  label: 'Devis envoyé',  color: '#d4a766' },
+    { key: 'confirmed',   label: 'Confirmé',      color: '#2e8a56' },
+    { key: 'refused',     label: 'Refusé',        color: '#c45b5b' }
+  ];
+  function qStatusInfo(k) { return QUOTE_STATUSES.find(s => s.key === k) || QUOTE_STATUSES[0]; }
+  let allQuotes = [];
+
+  function renderQuoteRequestsTab(container) {
+    container.innerHTML = `
+      <div class="hbt-extras-section">
+        <h2 style="font-family:var(--serif,'Playfair Display'),serif;color:var(--gold,#c89968);font-size:1.4rem;margin:0 0 0.4rem;">Demandes de devis</h2>
+        <p style="color:var(--muted,#8a7e6a);font-size:0.9rem;margin-bottom:1.4rem;">Demandes envoyées depuis le site via le formulaire "Demander un devis". Sauvegarde automatique dans Supabase.</p>
+
+        <div class="hbt-orders-controls">
+          <input type="text" id="q-search" placeholder="Rechercher : nom, téléphone, produit, ville…">
+          <select id="q-filter">
+            <option value="">Tous statuts</option>
+            ${QUOTE_STATUSES.map(s => `<option value="${s.key}">${s.label}</option>`).join('')}
+          </select>
+          <button type="button" class="hbt-btn-primary" id="q-refresh" style="padding:0.6rem 1.2rem;font-size:0.75rem;">Rafraîchir</button>
+        </div>
+
+        <div id="q-status-line" style="font-size:0.85rem;color:var(--muted);margin-bottom:0.8rem;"></div>
+
+        <div style="overflow-x:auto;">
+          <table class="hbt-orders-table" id="q-table">
+            <thead><tr>
+              <th>Réf</th><th>Date</th><th>Client</th><th>Téléphone</th>
+              <th>Produit</th><th>Localisation</th><th>Statut</th><th>Actions</th>
+            </tr></thead>
+            <tbody><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:1.4rem;">Chargement…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    `;
+    wireQuoteRequests();
+    loadQuoteRequests();
+  }
+
+  async function loadQuoteRequests() {
+    const tbody = document.querySelector('#q-table tbody');
+    const line  = document.querySelector('#q-status-line');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);">Chargement…</td></tr>';
+
+    const supaOk = (window.HBT_CONFIG && window.HBT_CONFIG.isSupabaseReady && window.HBT_CONFIG.isSupabaseReady());
+    if (supaOk) {
+      try {
+        const res = await fetch(window.HBT_CONFIG.supabase.url + '/rest/v1/quote_requests?select=*&order=created_at.desc', {
+          headers: {
+            apikey: window.HBT_CONFIG.supabase.anonKey,
+            Authorization: 'Bearer ' + window.HBT_CONFIG.supabase.anonKey
+          },
+          cache: 'no-store'
+        });
+        if (res.ok) {
+          allQuotes = await res.json();
+          if (line) { line.innerHTML = '✓ Connecté à Supabase — ' + allQuotes.length + ' demande(s)'; line.style.color = '#2e8a56'; }
+        } else {
+          const txt = await res.text();
+          console.warn('[QuoteRequests] Supabase ' + res.status, txt);
+          if (line) { line.innerHTML = '⚠ Supabase erreur ' + res.status + ' — fallback localStorage'; line.style.color = '#c89968'; }
+          loadFromLocalStorage();
+        }
+      } catch (e) {
+        console.warn('[QuoteRequests] Réseau :', e.message);
+        if (line) { line.innerHTML = '⚠ Réseau indisponible — fallback localStorage'; line.style.color = '#c89968'; }
+        loadFromLocalStorage();
+      }
+    } else {
+      if (line) { line.innerHTML = '⚠ Supabase non configuré — affichage localStorage uniquement'; line.style.color = '#c89968'; }
+      loadFromLocalStorage();
+    }
+    renderQuoteRows();
+  }
+
+  function loadFromLocalStorage() {
+    try {
+      allQuotes = JSON.parse(localStorage.getItem('home-by-tika-quotes') || '[]')
+        .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+    } catch (e) { allQuotes = []; }
+  }
+
+  function renderQuoteRows() {
+    const tbody = document.querySelector('#q-table tbody');
+    if (!tbody) return;
+    const q = (document.querySelector('#q-search').value || '').trim().toLowerCase();
+    const statusFilter = document.querySelector('#q-filter').value;
+
+    const filtered = allQuotes.filter(o => {
+      if (statusFilter && o.status !== statusFilter) return false;
+      if (q) {
+        const blob = [o.id, o.customer_name, o.phone, o.email, o.location, o.product, o.message].filter(Boolean).join(' ').toLowerCase();
+        if (blob.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:1.8rem;">Aucune demande ne correspond aux critères.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(o => {
+      const st = qStatusInfo(o.status);
+      return `
+        <tr data-id="${escapeHtml(o.id)}">
+          <td data-label="Réf"><span class="hbt-order-id-cell">${escapeHtml(o.id)}</span></td>
+          <td data-label="Date">${fmt(o.created_at)}</td>
+          <td data-label="Client">${escapeHtml(o.customer_name || '—')}</td>
+          <td data-label="Téléphone">${escapeHtml(o.phone || '—')}</td>
+          <td data-label="Produit">${escapeHtml(o.product || '—')}</td>
+          <td data-label="Localisation">${escapeHtml(o.location || '—')}</td>
+          <td data-label="Statut">
+            <select class="status-select" data-action="q-status" style="border-color:${st.color};color:${st.color};font-weight:600;">
+              ${QUOTE_STATUSES.map(s =>
+                '<option value="' + s.key + '"' + (s.key === o.status ? ' selected' : '') + '>' + s.label + '</option>'
+              ).join('')}
+            </select>
+          </td>
+          <td data-label="Actions">
+            <button type="button" data-action="q-view" class="hbt-btn-primary" style="padding:0.4rem 0.8rem;font-size:0.7rem;">Détails</button>
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  function wireQuoteRequests() {
+    document.querySelector('#q-search').addEventListener('input', renderQuoteRows);
+    document.querySelector('#q-filter').addEventListener('change', renderQuoteRows);
+    document.querySelector('#q-refresh').addEventListener('click', loadQuoteRequests);
+
+    document.querySelector('#q-table tbody').addEventListener('change', async e => {
+      if (!e.target.matches('[data-action="q-status"]')) return;
+      const select = e.target;
+      const id = select.closest('tr').dataset.id;
+      const newStatus = select.value;
+      const prev = (allQuotes.find(x => x.id === id) || {}).status;
+      select.disabled = true; select.style.opacity = '0.55';
+      try {
+        if (window.HBT_CONFIG && window.HBT_CONFIG.isSupabaseReady && window.HBT_CONFIG.isSupabaseReady()) {
+          const cur = allQuotes.find(x => x.id === id);
+          const history = Array.isArray(cur && cur.history) ? cur.history.slice() : [];
+          history.push({ at: new Date().toISOString(), status: newStatus, note: 'Admin update' });
+          const res = await fetch(window.HBT_CONFIG.supabase.url + '/rest/v1/quote_requests?id=eq.' + encodeURIComponent(id), {
+            method: 'PATCH',
+            headers: {
+              apikey: window.HBT_CONFIG.supabase.anonKey,
+              Authorization: 'Bearer ' + window.HBT_CONFIG.supabase.anonKey,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status: newStatus, history: history, updated_at: new Date().toISOString() })
+          });
+          if (!res.ok) throw new Error('Supabase ' + res.status);
+        }
+        const o = allQuotes.find(x => x.id === id);
+        if (o) o.status = newStatus;
+        const st = qStatusInfo(newStatus);
+        select.style.borderColor = st.color; select.style.color = st.color;
+        toast('✓ ' + escapeHtml(id) + ' → <strong>' + escapeHtml(st.label) + '</strong>', '#2e8a56');
+      } catch (err) {
+        toast('❌ Sauvegarde échouée : ' + err.message, '#c45b5b');
+        if (prev) select.value = prev;
+      } finally {
+        select.disabled = false; select.style.opacity = '1';
+      }
+    });
+
+    document.querySelector('#q-table tbody').addEventListener('click', e => {
+      if (e.target.matches('[data-action="q-view"]')) {
+        const id = e.target.closest('tr').dataset.id;
+        const o = allQuotes.find(x => x.id === id);
+        if (o) showQuoteDetails(o);
+      }
+    });
+  }
+
+  function showQuoteDetails(o) {
+    const histList = (o.history || []).map(h =>
+      '<li>' + fmt(h.at) + ' — <strong>' + escapeHtml(qStatusInfo(h.status).label) + '</strong>' + (h.note ? ' — ' + escapeHtml(h.note) : '') + '</li>'
+    ).join('') || '<li style="color:var(--muted);">—</li>';
+
+    const waNum = (window.HBT_CONFIG && window.HBT_CONFIG.contact && window.HBT_CONFIG.contact.whatsapp) || '2250748738671';
+    const waMsg = encodeURIComponent('Bonjour ' + (o.customer_name || '') + ', concernant votre demande ' + o.id + ' chez HOME BY TIKA…');
+    const waLink = 'https://wa.me/' + (o.phone || waNum).replace(/[^\d+]/g, '') + '?text=' + waMsg;
+
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99998;display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto;backdrop-filter:blur(4px);';
+    modal.innerHTML = `
+      <div style="background:var(--bg-card,#1a1820);border:1px solid var(--gold,#c89968);padding:1.8rem;border-radius:4px;max-width:680px;width:100%;font-family:Inter,sans-serif;color:var(--ivory,#f5ede0);margin:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;gap:0.6rem;flex-wrap:wrap;">
+          <h3 style="color:var(--gold,#c89968);font-family:'Playfair Display',serif;margin:0;font-size:1.4rem;">${escapeHtml(o.id)}</h3>
+          <button type="button" class="q-modal-close" style="background:transparent;border:1px solid var(--line);color:var(--ivory);padding:0.4rem 0.8rem;cursor:pointer;border-radius:2px;">Fermer</button>
+        </div>
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1.4rem;">Reçue le ${fmt(o.created_at)} · Statut : <strong style="color:${qStatusInfo(o.status).color};">${escapeHtml(qStatusInfo(o.status).label)}</strong></p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem 1.4rem;font-size:0.9rem;margin-bottom:1.2rem;">
+          <div><strong style="color:var(--gold);font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;">Client</strong><br>${escapeHtml(o.customer_name || '—')}</div>
+          <div><strong style="color:var(--gold);font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;">Téléphone</strong><br>${escapeHtml(o.phone || '—')}</div>
+          <div><strong style="color:var(--gold);font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;">Email</strong><br>${escapeHtml(o.email || '—')}</div>
+          <div><strong style="color:var(--gold);font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;">Localisation</strong><br>${escapeHtml(o.location || '—')}</div>
+          <div><strong style="color:var(--gold);font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;">Produit</strong><br>${escapeHtml(o.product || '—')}</div>
+          <div><strong style="color:var(--gold);font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;">Essence</strong><br>${escapeHtml(o.wood || '—')}</div>
+          <div><strong style="color:var(--gold);font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;">Dimensions</strong><br>${escapeHtml(o.dimensions || '—')}</div>
+          <div><strong style="color:var(--gold);font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;">Budget</strong><br>${escapeHtml(o.budget || '—')}</div>
+        </div>
+
+        <div style="margin-bottom:1.4rem;">
+          <strong style="color:var(--gold);font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;display:block;margin-bottom:0.4rem;">Message du client</strong>
+          <div style="background:var(--bg-soft);padding:0.8rem 1rem;font-size:0.9rem;border-radius:2px;white-space:pre-wrap;color:var(--ivory-dim);">${escapeHtml(o.message || '— Aucun message —')}</div>
+        </div>
+
+        <div style="margin-bottom:1.4rem;">
+          <strong style="color:var(--gold);font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;">Historique</strong>
+          <ul style="margin:0.4rem 0 0 1.2rem;font-size:0.85rem;color:var(--ivory-dim);">${histList}</ul>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;padding-top:1rem;border-top:1px solid var(--line);">
+          <a href="${waLink}" target="_blank" rel="noopener" style="padding:0.7rem 1.1rem;font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;background:#25d366;color:#fff;text-decoration:none;border-radius:2px;font-weight:700;">Contacter sur WhatsApp</a>
+          ${o.email ? `<a href="mailto:${escapeHtml(o.email)}?subject=${encodeURIComponent('Devis ' + o.id + ' - HOME BY TIKA')}" style="padding:0.7rem 1.1rem;font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;border:1px solid var(--gold);color:var(--gold);text-decoration:none;border-radius:2px;">Email</a>` : ''}
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelectorAll('.q-modal-close').forEach(b => b.addEventListener('click', () => modal.remove()));
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
   }
 
   /* ============================================================
