@@ -144,30 +144,42 @@ window.HBT_MEDIA = {
      • 'site'    → image du site (hero, atelier) — non listé
    ========================================================= */
 window.HBT_CATEGORIES = [
-  /* ===== Produits (boutique) ===== */
-  { slug: 'portes',         label: 'Portes',          type: 'produit' },
-  { slug: 'salons',         label: 'Salons',          type: 'produit' },
-  { slug: 'tables',         label: 'Tables',          type: 'produit' },
-  { slug: 'chaises',        label: 'Chaises',         type: 'produit' },
-  { slug: 'lits',           label: 'Lits',            type: 'produit' },
-  { slug: 'armoires',       label: 'Armoires',        type: 'produit' },
-  { slug: 'cuisines',       label: 'Cuisines',        type: 'produit' },
-  { slug: 'meublestv',      label: 'Meubles TV',      type: 'produit' },
-  { slug: 'bureaux',        label: 'Bureaux',         type: 'produit' },
-  { slug: 'exterieur',      label: 'Extérieur',       type: 'produit' },
-  { slug: 'serrures',       label: 'Serrures',        type: 'produit' },
-  { slug: 'decoration',     label: 'Décoration',      type: 'produit' },
-  { slug: 'pots-de-fleurs', label: 'Pots de fleurs',  type: 'produit' },
-  { slug: 'luminaires',     label: 'Luminaires',      type: 'produit' },
-  { slug: 'miroirs',        label: 'Miroirs',         type: 'produit' },
-  { slug: 'accessoires',    label: 'Accessoires',     type: 'produit' },
-  { slug: 'sur-mesure',     label: 'Sur mesure',      type: 'produit' },
+  /* ===== Produits (boutique) =====
+     galleryTab = identifiant du tab dans galerie.html où la catégorie apparaît.
+     Ainsi un produit "portes" apparaît dans le tab Portes de la galerie,
+     ET on peut AUSSI ajouter des images d'ambiance via "Galerie : Portes"
+     qui partagent le même galleryTab. */
+  { slug: 'portes',         label: 'Portes',          type: 'produit', galleryTab: 'portes' },
+  { slug: 'salons',         label: 'Salons',          type: 'produit', galleryTab: 'mobilier' },
+  { slug: 'tables',         label: 'Tables',          type: 'produit', galleryTab: 'mobilier' },
+  { slug: 'chaises',        label: 'Chaises',         type: 'produit', galleryTab: 'mobilier' },
+  { slug: 'lits',           label: 'Lits',            type: 'produit', galleryTab: 'mobilier' },
+  { slug: 'armoires',       label: 'Armoires',        type: 'produit', galleryTab: 'mobilier' },
+  { slug: 'cuisines',       label: 'Cuisines',        type: 'produit', galleryTab: 'mobilier' },
+  { slug: 'meublestv',      label: 'Meubles TV',      type: 'produit', galleryTab: 'mobilier' },
+  { slug: 'bureaux',        label: 'Bureaux',         type: 'produit', galleryTab: 'mobilier' },
+  { slug: 'exterieur',      label: 'Extérieur',       type: 'produit', galleryTab: 'mobilier' },
+  { slug: 'serrures',       label: 'Serrures',        type: 'produit', galleryTab: 'serrures' },
+  { slug: 'decoration',     label: 'Décoration',      type: 'produit', galleryTab: 'collections' },
+  { slug: 'pots-de-fleurs', label: 'Pots de fleurs',  type: 'produit', galleryTab: 'collections' },
+  { slug: 'luminaires',     label: 'Luminaires',      type: 'produit', galleryTab: 'collections' },
+  { slug: 'miroirs',        label: 'Miroirs',         type: 'produit', galleryTab: 'collections' },
+  { slug: 'accessoires',    label: 'Accessoires',     type: 'produit', galleryTab: 'collections' },
+  { slug: 'sur-mesure',     label: 'Sur mesure',      type: 'produit', galleryTab: 'collections' },
 
-  /* ===== Galeries (non-produit) ===== */
-  { slug: 'mobilier',       label: 'Mobilier',        type: 'galerie' },
-  { slug: 'atelier',        label: 'Atelier',         type: 'galerie' },
-  { slug: 'collections',    label: 'Collections',     type: 'galerie' },
-  { slug: 'videos',         label: 'Vidéos',          type: 'galerie' }
+  /* ===== Galeries pures (ambiance, non-produit) =====
+     Chaque entrée correspond à un tab de galerie.html. */
+  { slug: 'mobilier',         label: 'Mobilier',     type: 'galerie', galleryTab: 'mobilier'    },
+  { slug: 'atelier',          label: 'Atelier',      type: 'galerie', galleryTab: 'atelier'     },
+  { slug: 'collections',      label: 'Collections',  type: 'galerie', galleryTab: 'collections' },
+
+  /* Galeries d'AMBIANCE pour catégories produit (permet d'uploader des
+     images de mise en situation sans créer de produit boutique) */
+  { slug: 'gallery-portes',   label: 'Portes',       type: 'galerie', galleryTab: 'portes',     mediaKind: 'image' },
+  { slug: 'gallery-serrures', label: 'Serrures',     type: 'galerie', galleryTab: 'serrures',   mediaKind: 'image' },
+
+  /* Vidéos — accepte fichiers vidéo dans l'admin */
+  { slug: 'videos',           label: 'Vidéos',       type: 'galerie', galleryTab: 'videos',     mediaKind: 'video' }
 ];
 
 /* =========================================================
@@ -348,7 +360,11 @@ window.HBT_CATEGORIES = [
       try {
         const products = await window.ProductService.list(category);
         supaItems = (products || []).map(function (p) {
-          const isVideo = !!p.video || category === 'videos';
+          // Détecte vidéo : champ media_type='video' OU catégorie videos OU URL .mp4/.webm
+          const isVideo = (p.media_type === 'video')
+                        || !!p.video
+                        || category === 'videos'
+                        || /\.(mp4|webm|mov|m4v)(\?|$)/i.test(p.cloudinary_url || '');
           const fcfaPrice = (p.price != null) ?
             new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(p.price) + ' FCFA'
             : '';
@@ -362,8 +378,11 @@ window.HBT_CATEGORIES = [
             monogram: p.monogram || (p.name ? p.name.charAt(0).toUpperCase() : '·'),
             category: category,
             video:    isVideo,
+            // URL directe Cloudinary (déjà bonne resource_type) si présente, sinon construction
             url:      p.cloudinary_url || window.HBT_mediaUrl(category, p.id, { width: 1200, crop: 'fill', gravity: 'auto', video: isVideo }),
-            thumbUrl: window.HBT_mediaUrl(category, p.id, { width: 500, crop: 'fill', gravity: 'auto', video: isVideo }),
+            thumbUrl: isVideo
+                      ? (p.cloudinary_url || '').replace(/\.(mp4|webm|mov|m4v)/i, '.jpg')  // Cloudinary génère auto la frame poster
+                      : window.HBT_mediaUrl(category, p.id, { width: 500, crop: 'fill', gravity: 'auto', video: false }),
             _source:  'supabase'
           };
         });
@@ -487,6 +506,44 @@ window.HBT_CATEGORIES = [
     imgEl.src = window.HBT_getPlaceholderUrl(name, opts);
     const parent = imgEl.parentNode;
     if (parent) parent.classList.add('hbt-placeholder');
+  };
+
+  /* =========================================================
+     HBT_galleryListAsync(tabSlug)
+     ----------------------------------------------------------
+     Renvoie tous les médias (manifeste + Supabase + Cloudinary)
+     pour un tab de galerie donné, en fusionnant TOUTES les
+     catégories qui ont galleryTab === tabSlug.
+
+     Exemple pour le tab "portes" :
+       • catégorie 'portes' (produit) → produits boutique
+       • catégorie 'gallery-portes' (galerie) → ambiance shots
+       → merge sans doublons, produits en tête.
+     ========================================================= */
+  window.HBT_galleryListAsync = async function (tabSlug) {
+    if (!tabSlug) return [];
+    const cats = (window.HBT_CATEGORIES || []).filter(c => c.galleryTab === tabSlug);
+    if (cats.length === 0) {
+      // Fallback : essaie le slug directement
+      return window.HBT_mediaListAsync(tabSlug);
+    }
+    // Charge en parallèle
+    const lists = await Promise.all(cats.map(c => window.HBT_mediaListAsync(c.slug).catch(() => [])));
+    // Merge avec dédup par id
+    const merged = [];
+    const seen = new Set();
+    lists.forEach(list => {
+      list.forEach(it => {
+        if (!seen.has(it.id)) {
+          merged.push(it);
+          seen.add(it.id);
+        }
+      });
+    });
+    if (window.HBT_DEBUG_MEDIA) {
+      console.log('[HBT_galleryListAsync]', tabSlug, '→', merged.length, 'médias (depuis', cats.length, 'catégorie(s))');
+    }
+    return merged;
   };
 
   /* =========================================================
