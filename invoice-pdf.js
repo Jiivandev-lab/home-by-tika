@@ -610,83 +610,18 @@
     });
   }
 
-  /* ========== Boot ========== */
-  /* injectTab : essaie d'injecter l'onglet "Devis & Factures" dans le DOM.
-     Robuste : utilise un MutationObserver qui se déclenche dès que le
-     conteneur .hbt-extras-tabs apparaît dans le DOM. Fonctionne quel que
-     soit l'ordre/timing de chargement d'admin-extras.js. */
-  function tryInjectNow() {
-    const tabs = document.querySelector('.hbt-extras-tabs');
-    if (!tabs) return false;
-    if (tabs.querySelector('[data-tab="docs"]')) return true;  // déjà injecté
+  /* ========== Boot ==========
+     L'onglet "Devis & Factures" est désormais HARDCODÉ dans admin-extras.js
+     (wrap.innerHTML). Quand l'utilisateur clique dessus, admin-extras appelle
+     window.HBT_renderInvoiceTab(container) ci-dessous. Plus aucune injection
+     fragile via MutationObserver / setTimeout. */
 
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'hbt-extras-tab';
-    btn.dataset.tab = 'docs';
-    btn.textContent = 'Devis & Factures';
-    tabs.appendChild(btn);
-
-    btn.addEventListener('click', () => {
-      tabs.querySelectorAll('.hbt-extras-tab').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      showDocsTab();
-    });
-
-    console.log('[invoice-pdf] Onglet "Devis & Factures" injecté ✓');
-    return true;
-  }
-
-  function injectTab() {
-    // Essai immédiat
-    if (tryInjectNow()) return;
-    // Sinon, observe le DOM pour réessayer dès que .hbt-extras-tabs apparaît
-    if (!('MutationObserver' in window)) {
-      // Fallback ancien : retry par intervalle
-      let tries = 0;
-      const iv = setInterval(() => {
-        if (tryInjectNow() || ++tries > 60) clearInterval(iv);
-      }, 250);
-      return;
-    }
-    const observer = new MutationObserver(() => {
-      if (tryInjectNow()) observer.disconnect();
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-    // Sécurité : déconnecte après 60s (jamais d'observer immortel)
-    setTimeout(() => observer.disconnect(), 60000);
-  }
-
-  async function showDocsTab() {
-    const content = document.querySelector('#hbt-extras-content');
-    if (!content) return;
-    content.classList.add('hbt-invoice-section');
-
-    // Header avec 2 sections rapides + formulaire en-dessous
-    content.innerHTML = `
-      <h2>Devis & Factures</h2>
-      <p class="lede">Espace dédié à la facturation. Sélectionnez une commande payée pour générer la facture en 1 clic, ou créez un devis/facture manuellement ci-dessous.</p>
-
-      <!-- Section 1 : Commandes payées (prêtes à facturer) -->
-      <div style="margin-bottom:1.6rem;background:rgba(46,138,86,0.06);border-left:3px solid #2e8a56;padding:1rem 1.2rem;border-radius:2px;">
-        <strong style="color:#5cc488;font-size:0.78rem;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;display:block;margin-bottom:0.7rem;">✓ Commandes payées — prêtes à facturer</strong>
-        <div id="hbt-paid-orders" style="font-size:0.88rem;color:var(--ivory-dim);">Chargement…</div>
-      </div>
-
-      <!-- Section 2 : Factures déjà générées -->
-      <div style="margin-bottom:1.8rem;background:rgba(200,153,104,0.06);border-left:3px solid var(--gold);padding:1rem 1.2rem;border-radius:2px;">
-        <strong style="color:var(--gold);font-size:0.78rem;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;display:block;margin-bottom:0.7rem;">📄 Factures déjà générées</strong>
-        <div id="hbt-existing-invoices" style="font-size:0.88rem;color:var(--ivory-dim);">Chargement…</div>
-      </div>
-
-      <!-- Section 3 : Formulaire (séparateur + form complet) -->
-      <div style="border-top:1px solid var(--line);padding-top:1.4rem;margin-top:0.4rem;">
-        <h3 style="font-family:var(--serif);color:var(--gold);font-size:1.15rem;margin:0 0 0.5rem;">Créer un nouveau document</h3>
-        <p style="color:var(--muted);font-size:0.88rem;margin-bottom:1.2rem;">Devis ou facture — toutes les valeurs sont modifiables avant génération.</p>
-        ${docSectionInnerHTML()}
-      </div>
-    `;
-
+  /* API publique : rendre la section facturation dans un conteneur donné */
+  window.HBT_renderInvoiceTab = function (container) {
+    if (!container) container = document.querySelector('#hbt-extras-content');
+    if (!container) return;
+    container.classList.add('hbt-invoice-section');
+    container.innerHTML = buildDocsTabHTML();
     currentDoc = newEmptyDoc('quote');
     $('#doc-id').value = currentDoc.id;
     $('#doc-date').value = currentDoc.date;
@@ -695,10 +630,56 @@
     loadOrdersForSelect();
     loadPaidOrders();
     loadExistingInvoices();
-    // Charge Quill en arrière-plan
     initQuill().catch(e => console.warn('[invoice-pdf] Quill:', e.message));
-    // Charge html2pdf en arrière-plan
     if (!window.html2pdf) loadScript(LIBS.html2pdf).catch(e => console.warn('[invoice-pdf] html2pdf:', e.message));
+  };
+
+  /* Aussi : si l'onglet HTML n'a pas été préparé par admin-extras (vieille
+     version), on l'injecte en fallback la première fois. */
+  function fallbackInjectIfNeeded() {
+    const tabs = document.querySelector('.hbt-extras-tabs');
+    if (!tabs) return;
+    if (tabs.querySelector('[data-tab="docs"]')) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'hbt-extras-tab';
+    btn.dataset.tab = 'docs';
+    btn.textContent = 'Devis & Factures';
+    tabs.appendChild(btn);
+    btn.addEventListener('click', () => {
+      tabs.querySelectorAll('.hbt-extras-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const content = document.querySelector('#hbt-extras-content');
+      if (content) window.HBT_renderInvoiceTab(content);
+    });
+    console.log('[invoice-pdf] Fallback : onglet injecté (admin-extras.js sans support docs)');
+  }
+
+  /* Construit le HTML complet de la section "Devis & Factures" */
+  function buildDocsTabHTML() {
+    return `
+      <h2>Devis &amp; Factures</h2>
+      <p class="lede">Espace dédié à la facturation. Sélectionnez une commande payée pour générer la facture en 1 clic, ou créez un devis/facture manuellement ci-dessous.</p>
+
+      <!-- Section 1 : Commandes payées (prêtes à facturer) -->
+      <div style="margin-bottom:1.6rem;background:rgba(46,138,86,0.06);border-left:3px solid #2e8a56;padding:1rem 1.2rem;border-radius:2px;">
+        <strong style="color:#5cc488;font-size:0.78rem;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;display:block;margin-bottom:0.7rem;">✓ Commandes payées — prêtes à facturer</strong>
+        <div id="hbt-paid-orders" style="font-size:0.88rem;color:var(--ivory-dim,#d4c8b3);">Chargement…</div>
+      </div>
+
+      <!-- Section 2 : Factures déjà générées -->
+      <div style="margin-bottom:1.8rem;background:rgba(200,153,104,0.06);border-left:3px solid var(--gold,#c89968);padding:1rem 1.2rem;border-radius:2px;">
+        <strong style="color:var(--gold,#c89968);font-size:0.78rem;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;display:block;margin-bottom:0.7rem;">📄 Factures déjà générées</strong>
+        <div id="hbt-existing-invoices" style="font-size:0.88rem;color:var(--ivory-dim,#d4c8b3);">Chargement…</div>
+      </div>
+
+      <!-- Section 3 : Formulaire (séparateur + form complet) -->
+      <div style="border-top:1px solid var(--line,rgba(200,153,104,0.18));padding-top:1.4rem;margin-top:0.4rem;">
+        <h3 style="font-family:var(--serif,'Playfair Display'),serif;color:var(--gold,#c89968);font-size:1.15rem;margin:0 0 0.5rem;">Créer un nouveau document</h3>
+        <p style="color:var(--muted,#8a7e6a);font-size:0.88rem;margin-bottom:1.2rem;">Devis ou facture — toutes les valeurs sont modifiables avant génération.</p>
+        ${docSectionInnerHTML()}
+      </div>
+    `;
   }
 
   /* === Charge les commandes payées (payment_confirmed=true sans facture) === */
@@ -787,10 +768,16 @@
     }
   }
 
-  /* ========== Init ========== */
+  /* ========== Init ==========
+     L'onglet "Devis & Factures" est natif dans admin-extras.js.
+     On expose juste les CSS + le fallback injection si jamais l'admin-extras
+     est sur une ancienne version sans le 3e onglet. */
   function start() {
     injectCSS();
-    waitForAuth(() => setTimeout(injectTab, 250));  // attend que admin-extras.js ait monté ses tabs
+    waitForAuth(() => {
+      // Petit délai pour laisser admin-extras monter ses tabs, puis fallback si besoin
+      setTimeout(fallbackInjectIfNeeded, 300);
+    });
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', start);
