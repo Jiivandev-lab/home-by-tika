@@ -1126,31 +1126,511 @@
       wireOrders();
       loadOrders();
     } else if (tab === 'docs') {
-      // Délègue au module invoice-pdf.js si disponible
       content.classList.add('hbt-invoice-section');
+      // Si invoice-pdf.js (version enrichie avec Quill) est dispo → l'utiliser
+      // Sinon → rendu inline IMMÉDIAT (form fonctionnel sans CDN)
       if (typeof window.HBT_renderInvoiceTab === 'function') {
         window.HBT_renderInvoiceTab(content);
       } else {
-        // Fallback : module pas encore chargé / problème réseau (CDN)
-        content.innerHTML = '<h2>Devis &amp; Factures</h2>' +
-          '<p class="lede">Le module facturation est en cours de chargement…</p>' +
-          '<div style="display:flex;align-items:center;gap:0.8rem;padding:1.5rem;background:rgba(200,153,104,0.06);border-left:3px solid var(--gold,#c89968);border-radius:2px;">' +
-            '<span style="display:inline-block;width:18px;height:18px;border:2.5px solid var(--gold,#c89968);border-right-color:transparent;border-radius:50%;animation:hbt-spin 0.7s linear infinite;"></span>' +
-            '<span style="color:var(--ivory-dim,#d4c8b3);font-size:0.9rem;">Chargement de Quill (éditeur riche) et html2pdf via CDN…</span>' +
-          '</div>' +
-          '<p style="margin-top:1.2rem;color:var(--muted,#8a7e6a);font-size:0.85rem;">Si rien ne s\'affiche après 10 secondes : vérifiez que <code>invoice-pdf.js</code> est bien dans le repo GitHub et inclus dans <code>admin.html</code>, et que vous avez accès à Internet (Quill+html2pdf sont chargés via CDN).</p>';
-        // Retry toutes les 500ms pendant 10s
-        let tries = 0;
-        const iv = setInterval(() => {
-          if (typeof window.HBT_renderInvoiceTab === 'function') {
-            clearInterval(iv);
-            window.HBT_renderInvoiceTab(content);
-          } else if (++tries > 20) {
-            clearInterval(iv);
-          }
-        }, 500);
+        renderDocsTabInline(content);
       }
     }
+  }
+
+  /* ============================================================
+     DEVIS & FACTURES — RENDU INLINE (autonome, sans CDN)
+     ----------------------------------------------------------
+     Le form, la liste des commandes payées et la liste des factures
+     déjà générées s'affichent INSTANTANÉMENT, sans dépendre de Quill
+     ou html2pdf. Boutons:
+       • Aperçu       → nouvelle fenêtre avec rendu HTML
+       • Imprimer/PDF → window.print() avec mise en page A4 (l'utilisateur
+                         peut "Enregistrer en PDF" depuis la boîte d'impression)
+       • Si html2pdf est chargé (CDN OK) → bouton Téléchargement direct
+     ============================================================ */
+  let docCurrent = null;
+  let docQuill   = null;
+
+  function docFcfa(n) {
+    if (n == null || isNaN(n)) return '—';
+    return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n) + ' FCFA';
+  }
+  function docToday() {
+    return new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+  }
+  function docGenId(prefix) {
+    const d = new Date(), yy = String(d.getFullYear()).slice(-2);
+    const mm = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
+    const r = Math.random().toString(36).slice(2,6).toUpperCase();
+    return prefix + '-' + yy + mm + dd + '-' + r;
+  }
+  function docEmpty(type) {
+    return {
+      type: type, id: docGenId(type === 'invoice' ? 'FAC' : 'DEV'),
+      date: docToday(), orderId: '',
+      client: { name: '', phone: '', email: '', address: '' },
+      items: [{ name: '', dimensions: '', wood: '', qty: 1, unitPrice: '' }],
+      notesHtml: '',
+      payment: { method: '', amountPaid: 0 }
+    };
+  }
+
+  function renderDocsTabInline(container) {
+    docCurrent = docEmpty('quote');
+    container.innerHTML = buildDocsInlineHTML();
+    bindDocsInlineForm(container);
+    loadDocsPaidOrders();
+    loadDocsExistingInvoices();
+    loadDocsOrdersDropdown();
+    // Petit log diagnostic
+    console.log('[admin-extras] Devis & Factures rendu inline ✓');
+    // Tentative chargement html2pdf en arrière-plan (optionnel)
+    if (!window.html2pdf) {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      s.async = true;
+      s.onload = () => console.log('[admin-extras] html2pdf chargé ✓ (téléchargement direct dispo)');
+      s.onerror = () => console.warn('[admin-extras] html2pdf CDN indisponible — fallback Imprimer→PDF utilisable');
+      document.head.appendChild(s);
+    }
+  }
+
+  function buildDocsInlineHTML() {
+    return `
+      <h2>Devis &amp; Factures</h2>
+      <p class="lede">Espace dédié à la facturation. Sélectionnez une commande payée pour générer la facture en 1 clic, ou créez un document manuellement.</p>
+
+      <div style="margin-bottom:1.6rem;background:rgba(46,138,86,0.06);border-left:3px solid #2e8a56;padding:1rem 1.2rem;border-radius:2px;">
+        <strong style="color:#5cc488;font-size:0.78rem;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;display:block;margin-bottom:0.7rem;">✓ Commandes payées — prêtes à facturer</strong>
+        <div id="docs-paid-orders" style="font-size:0.88rem;color:var(--ivory-dim,#d4c8b3);">Chargement…</div>
+      </div>
+
+      <div style="margin-bottom:1.8rem;background:rgba(200,153,104,0.06);border-left:3px solid var(--gold,#c89968);padding:1rem 1.2rem;border-radius:2px;">
+        <strong style="color:var(--gold,#c89968);font-size:0.78rem;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;display:block;margin-bottom:0.7rem;">📄 Factures déjà générées</strong>
+        <div id="docs-existing-invoices" style="font-size:0.88rem;color:var(--ivory-dim,#d4c8b3);">Chargement…</div>
+      </div>
+
+      <div style="border-top:1px solid var(--line,rgba(200,153,104,0.18));padding-top:1.4rem;margin-top:0.4rem;">
+        <h3 style="font-family:var(--serif,'Playfair Display'),serif;color:var(--gold,#c89968);font-size:1.15rem;margin:0 0 0.5rem;">Créer un nouveau document</h3>
+        <p style="color:var(--muted,#8a7e6a);font-size:0.88rem;margin-bottom:1.2rem;">Devis ou facture — toutes les valeurs sont modifiables avant génération.</p>
+
+        <div class="hbt-form" id="docs-form">
+          <div><label>Type de document</label>
+            <select id="docs-type"><option value="quote">Devis</option><option value="invoice">Facture</option></select></div>
+          <div><label>N° document (auto)</label><input type="text" id="docs-id" readonly></div>
+          <div><label>Commande liée (optionnel)</label>
+            <select id="docs-order"><option value="">— Aucune —</option></select></div>
+          <div><label>Date</label><input type="text" id="docs-date"></div>
+
+          <div class="full" style="border-top:1px solid var(--line,rgba(200,153,104,0.18));padding-top:1rem;margin-top:0.4rem;">
+            <h4 style="font-family:var(--serif,'Playfair Display'),serif;color:var(--gold,#c89968);font-size:1.05rem;margin:0 0 1rem;">Informations client</h4>
+          </div>
+          <div><label>Nom complet *</label><input type="text" id="docs-cname" required></div>
+          <div><label>Téléphone</label><input type="text" id="docs-cphone"></div>
+          <div><label>Email</label><input type="email" id="docs-cemail"></div>
+          <div><label>Adresse</label><input type="text" id="docs-caddress"></div>
+
+          <div class="full" style="border-top:1px solid var(--line,rgba(200,153,104,0.18));padding-top:1rem;margin-top:0.4rem;">
+            <h4 style="font-family:var(--serif,'Playfair Display'),serif;color:var(--gold,#c89968);font-size:1.05rem;margin:0 0 1rem;display:flex;justify-content:space-between;align-items:center;">
+              Articles
+              <button type="button" id="docs-add-item" style="background:transparent;border:1px solid var(--gold,#c89968);color:var(--gold,#c89968);padding:0.4rem 0.9rem;font-size:0.75rem;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;border-radius:2px;">+ Ajouter une ligne</button>
+            </h4>
+            <div style="overflow-x:auto;">
+              <table class="hbt-items-table" id="docs-items-table">
+                <thead><tr>
+                  <th style="min-width:140px;">Désignation *</th>
+                  <th style="min-width:110px;">Dimensions</th>
+                  <th style="min-width:90px;">Essence</th>
+                  <th style="width:60px;">Qté</th>
+                  <th style="min-width:100px;">PU (FCFA)</th>
+                  <th style="min-width:90px;">Total</th>
+                  <th style="width:36px;"></th>
+                </tr></thead>
+                <tbody></tbody>
+                <tfoot><tr>
+                  <td colspan="5" style="text-align:right;color:var(--gold,#c89968);font-size:0.8rem;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;padding-top:1rem;">Total général</td>
+                  <td id="docs-total" style="text-align:right;font-size:1.1rem;color:var(--ivory,#f5ede0);font-weight:600;padding-top:1rem;">0 FCFA</td>
+                  <td></td>
+                </tr></tfoot>
+              </table>
+            </div>
+          </div>
+
+          <div class="full" style="border-top:1px solid var(--line,rgba(200,153,104,0.18));padding-top:1rem;margin-top:0.4rem;">
+            <h4 style="font-family:var(--serif,'Playfair Display'),serif;color:var(--gold,#c89968);font-size:1.05rem;margin:0 0 0.5rem;">Paiement (pour facture)</h4>
+            <p style="font-size:0.82rem;color:var(--muted,#8a7e6a);margin-bottom:0.7rem;">Affiché dans le PDF uniquement si type = Facture.</p>
+          </div>
+          <div><label>Montant payé (FCFA)</label><input type="number" id="docs-paid" min="0" step="1000" placeholder="0"></div>
+          <div><label>Mode de paiement</label>
+            <select id="docs-method">
+              <option value="">—</option>
+              <option>Mobile Money</option>
+              <option>Virement bancaire</option>
+              <option>Espèces</option>
+              <option>Carte bancaire</option>
+              <option>Chèque</option>
+            </select></div>
+
+          <div class="full" style="border-top:1px solid var(--line,rgba(200,153,104,0.18));padding-top:1rem;margin-top:0.4rem;">
+            <h4 style="font-family:var(--serif,'Playfair Display'),serif;color:var(--gold,#c89968);font-size:1.05rem;margin:0 0 0.5rem;">Notes / Conditions</h4>
+            <p style="font-size:0.82rem;color:var(--muted,#8a7e6a);margin-bottom:0.7rem;">Apparaît dans le PDF sous le tableau.</p>
+          </div>
+          <div class="full">
+            <textarea id="docs-notes" rows="5" placeholder="Conditions de paiement, délais de fabrication, garantie, remarques…" style="font-family:var(--sans,Inter),sans-serif;"></textarea>
+          </div>
+        </div>
+
+        <div class="hbt-action-row" style="display:flex;gap:0.6rem;flex-wrap:wrap;margin-top:1.4rem;">
+          <button type="button" id="docs-preview" style="padding:0.85rem 1.4rem;font-size:0.78rem;letter-spacing:1.8px;text-transform:uppercase;font-weight:700;border-radius:2px;cursor:pointer;border:1px solid var(--gold,#c89968);background:transparent;color:var(--gold,#c89968);">Prévisualiser</button>
+          <button type="button" id="docs-print"   style="padding:0.85rem 1.4rem;font-size:0.78rem;letter-spacing:1.8px;text-transform:uppercase;font-weight:700;border-radius:2px;cursor:pointer;border:1px solid var(--gold,#c89968);background:transparent;color:var(--gold,#c89968);">Imprimer / Enregistrer PDF</button>
+          <button type="button" id="docs-download" style="padding:0.85rem 1.4rem;font-size:0.78rem;letter-spacing:1.8px;text-transform:uppercase;font-weight:700;border-radius:2px;cursor:pointer;background:var(--gold,#c89968);border:none;color:#fff;">Télécharger PDF</button>
+          <button type="button" id="docs-reset"   style="padding:0.85rem 1.4rem;font-size:0.78rem;letter-spacing:1.8px;text-transform:uppercase;font-weight:700;border-radius:2px;cursor:pointer;border:1px solid var(--line,rgba(200,153,104,0.18));background:transparent;color:var(--ivory,#f5ede0);">Réinitialiser</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function buildInvoicePdfHTML(doc) {
+    const isInvoice = doc.type === 'invoice';
+    const docLabel = isInvoice ? 'FACTURE' : 'DEVIS';
+    const items = doc.items || [];
+    const total = items.reduce((s,it) => s + ((Number(it.qty)||0) * (Number(it.unitPrice)||0)), 0);
+    const paid = isInvoice ? (Number(doc.payment && doc.payment.amountPaid) || 0) : 0;
+    const balance = Math.max(0, total - paid);
+
+    const rows = items.map(it => {
+      const qty = Number(it.qty) || 1;
+      const unit = Number(it.unitPrice);
+      const dim = (it.dimensions || '').trim() || 'À confirmer';
+      const wood = (it.wood || '').trim() || '—';
+      const lineTotal = (unit && qty) ? unit * qty : null;
+      return `
+        <tr>
+          <td style="padding:14px 12px;border-bottom:1px solid #e8dcbf;">
+            <strong style="color:#1a1410;font-size:11pt;">${escapeHtml(it.name || 'Article')}</strong>
+          </td>
+          <td style="padding:14px 12px;border-bottom:1px solid #e8dcbf;font-size:9.5pt;color:#5a4a36;">${escapeHtml(dim)}</td>
+          <td style="padding:14px 12px;border-bottom:1px solid #e8dcbf;font-size:9.5pt;color:#5a4a36;">${escapeHtml(wood)}</td>
+          <td style="padding:14px 12px;border-bottom:1px solid #e8dcbf;text-align:center;font-size:10pt;color:#1a1410;">${qty}</td>
+          <td style="padding:14px 12px;border-bottom:1px solid #e8dcbf;text-align:right;font-size:9.5pt;color:#1a1410;">${unit ? docFcfa(unit) : '—'}</td>
+          <td style="padding:14px 12px;border-bottom:1px solid #e8dcbf;text-align:right;font-size:10pt;color:#1a1410;font-weight:600;">${lineTotal != null ? docFcfa(lineTotal) : 'À confirmer'}</td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="6" style="padding:30px;text-align:center;color:#7a6f5e;font-style:italic;">Aucun article</td></tr>';
+
+    const notesHtml = (doc.notesHtml || '').replace(/\n/g, '<br>');
+
+    return `
+<div style="width:210mm;min-height:297mm;padding:18mm 16mm;background:#fbf7ed;color:#1a1410;font-family:'Inter','Helvetica Neue',Helvetica,Arial,sans-serif;box-sizing:border-box;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #c89968;padding-bottom:16px;margin-bottom:24px;">
+    <div>
+      <div style="font-family:'Playfair Display','Georgia',serif;font-size:24pt;color:#1a1410;font-weight:500;letter-spacing:1px;line-height:1;">HOME BY <em style="color:#c89968;font-style:italic;font-weight:600;">TIKA</em></div>
+      <div style="color:#7a6f5e;font-size:9pt;letter-spacing:3px;text-transform:uppercase;margin-top:4px;">Bois massif · Côte d'Ivoire</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="background:#c89968;color:#fff;padding:8px 18px;font-size:14pt;font-weight:700;letter-spacing:3px;display:inline-block;">${docLabel}</div>
+      <div style="font-family:'Menlo','Courier New',monospace;font-size:10.5pt;margin-top:8px;color:#1a1410;">${escapeHtml(doc.id)}</div>
+      <div style="color:#7a6f5e;font-size:9pt;margin-top:2px;">Émis le ${escapeHtml(doc.date)}</div>
+    </div>
+  </div>
+  <table style="width:100%;margin-bottom:24px;border-collapse:collapse;"><tr>
+    <td style="width:48%;vertical-align:top;padding-right:8mm;">
+      <div style="color:#c89968;font-size:8pt;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:6px;">Atelier</div>
+      <div style="font-size:10pt;line-height:1.5;color:#1a1410;">
+        <strong>HOME BY TIKA</strong><br>Songon, Cité la Grâce<br>Abidjan, Côte d'Ivoire<br>
+        WhatsApp : +225 07 48 73 86 71<br>contact@homebytika.ci
+      </div>
+    </td>
+    <td style="width:4%;"></td>
+    <td style="width:48%;vertical-align:top;background:rgba(200,153,104,0.07);padding:14px 16px;border-left:3px solid #c89968;">
+      <div style="color:#c89968;font-size:8pt;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:6px;">Client</div>
+      <div style="font-size:10pt;line-height:1.5;color:#1a1410;">
+        <strong>${escapeHtml(doc.client.name || '—')}</strong><br>
+        ${doc.client.phone ? escapeHtml(doc.client.phone) + '<br>' : ''}
+        ${doc.client.email ? escapeHtml(doc.client.email) + '<br>' : ''}
+        ${doc.client.address ? escapeHtml(doc.client.address) : ''}
+      </div>
+    </td>
+  </tr></table>
+  ${doc.orderId ? '<div style="background:#fff6e3;border:1px solid #f0e2c0;padding:10px 14px;margin-bottom:20px;font-size:9.5pt;color:#5a4a36;"><strong style="color:#c89968;">Commande associée :</strong> ' + escapeHtml(doc.orderId) + '</div>' : ''}
+  <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+    <thead><tr style="background:#1a1410;color:#c89968;">
+      <th style="padding:11px 12px;text-align:left;font-size:8.5pt;letter-spacing:2px;text-transform:uppercase;font-weight:700;">Désignation</th>
+      <th style="padding:11px 12px;text-align:left;font-size:8.5pt;letter-spacing:2px;text-transform:uppercase;font-weight:700;">Dimensions</th>
+      <th style="padding:11px 12px;text-align:left;font-size:8.5pt;letter-spacing:2px;text-transform:uppercase;font-weight:700;">Essence</th>
+      <th style="padding:11px 12px;text-align:center;font-size:8.5pt;letter-spacing:2px;text-transform:uppercase;font-weight:700;">Qté</th>
+      <th style="padding:11px 12px;text-align:right;font-size:8.5pt;letter-spacing:2px;text-transform:uppercase;font-weight:700;">PU</th>
+      <th style="padding:11px 12px;text-align:right;font-size:8.5pt;letter-spacing:2px;text-transform:uppercase;font-weight:700;">Total</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div style="text-align:right;margin-bottom:24px;">
+    <table style="display:inline-block;border-collapse:collapse;">
+      <tr><td style="padding:8px 16px;color:#7a6f5e;font-size:10pt;letter-spacing:1.5px;text-transform:uppercase;">Total général</td>
+        <td style="padding:8px 16px;background:#1a1410;color:#c89968;font-size:14pt;font-weight:700;font-family:'Playfair Display','Georgia',serif;text-align:right;min-width:160px;">${docFcfa(total)}</td></tr>
+      ${(isInvoice && paid > 0) ? '<tr><td style="padding:6px 16px;color:#7a6f5e;font-size:9.5pt;text-transform:uppercase;">Montant payé</td><td style="padding:6px 16px;background:rgba(46,138,86,0.1);color:#2e8a56;font-size:11pt;font-weight:700;text-align:right;border-left:3px solid #2e8a56;">' + docFcfa(paid) + '</td></tr><tr><td style="padding:6px 16px;color:#7a6f5e;font-size:9.5pt;text-transform:uppercase;">Solde restant</td><td style="padding:6px 16px;background:' + (balance > 0 ? 'rgba(196,91,91,0.1)' : 'rgba(46,138,86,0.1)') + ';color:' + (balance > 0 ? '#c45b5b' : '#2e8a56') + ';font-size:11pt;font-weight:700;text-align:right;border-left:3px solid ' + (balance > 0 ? '#c45b5b' : '#2e8a56') + ';">' + docFcfa(balance) + '</td></tr>' : ''}
+      ${(isInvoice && doc.payment && doc.payment.method) ? '<tr><td style="padding:6px 16px;color:#7a6f5e;font-size:9.5pt;text-transform:uppercase;">Mode de paiement</td><td style="padding:6px 16px;color:#1a1410;font-size:10pt;font-weight:600;text-align:right;">' + escapeHtml(doc.payment.method) + '</td></tr>' : ''}
+      <tr><td colspan="2" style="padding:4px 16px;color:#7a6f5e;font-size:8pt;text-align:right;">Prix exprimés en FCFA · Mobile Money &amp; virement acceptés</td></tr>
+    </table>
+  </div>
+  ${notesHtml ? '<div style="background:rgba(200,153,104,0.06);border-left:3px solid #c89968;padding:14px 18px;margin-bottom:24px;font-size:9.5pt;line-height:1.6;color:#1a1410;"><div style="color:#c89968;font-size:8pt;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:8px;">' + (isInvoice ? 'Conditions &amp; informations' : 'Notes du devis') + '</div>' + notesHtml + '</div>' : ''}
+  <div style="border-top:1px solid #e8dcbf;padding-top:14px;margin-top:24px;text-align:center;color:#7a6f5e;font-size:8.5pt;letter-spacing:1px;line-height:1.5;">
+    HOME BY TIKA · Ébénisterie premium · Iroko · Framiré · Teck<br>
+    ${isInvoice ? 'Facture' : 'Devis valable 30 jours · Acompte 50% à la commande'} · Merci de votre confiance
+  </div>
+</div>`;
+  }
+
+  function renderDocItems() {
+    const tbody = document.querySelector('#docs-items-table tbody');
+    if (!tbody || !docCurrent) return;
+    tbody.innerHTML = docCurrent.items.map((it, idx) => {
+      const total = (Number(it.qty)||0) * (Number(it.unitPrice)||0);
+      return `<tr data-idx="${idx}">
+        <td><input type="text" data-f="name" value="${escapeHtml(it.name)}" placeholder="Nom du produit"></td>
+        <td><input type="text" data-f="dimensions" value="${escapeHtml(it.dimensions)}" placeholder="ex: 200×80×40"></td>
+        <td><input type="text" data-f="wood" value="${escapeHtml(it.wood)}" placeholder="Iroko, Teck…"></td>
+        <td><input type="number" data-f="qty" value="${escapeHtml(it.qty)}" min="1"></td>
+        <td><input type="number" data-f="unitPrice" value="${escapeHtml(it.unitPrice)}" min="0" step="1000" placeholder="0"></td>
+        <td style="color:var(--gold,#c89968);font-weight:600;padding:0.4rem;">${total ? docFcfa(total) : '—'}</td>
+        <td><button type="button" class="row-remove" data-rm="${idx}">×</button></td>
+      </tr>`;
+    }).join('');
+    const grand = docCurrent.items.reduce((s,it) => s + (Number(it.qty)||0) * (Number(it.unitPrice)||0), 0);
+    document.querySelector('#docs-total').textContent = docFcfa(grand);
+  }
+
+  function bindDocsInlineForm(container) {
+    document.querySelector('#docs-id').value = docCurrent.id;
+    document.querySelector('#docs-date').value = docCurrent.date;
+    renderDocItems();
+
+    document.querySelector('#docs-type').addEventListener('change', e => {
+      docCurrent.type = e.target.value;
+      docCurrent.id = docGenId(docCurrent.type === 'invoice' ? 'FAC' : 'DEV');
+      document.querySelector('#docs-id').value = docCurrent.id;
+    });
+    document.querySelector('#docs-date').addEventListener('input', e => docCurrent.date = e.target.value);
+    document.querySelector('#docs-cname').addEventListener('input', e => docCurrent.client.name = e.target.value);
+    document.querySelector('#docs-cphone').addEventListener('input', e => docCurrent.client.phone = e.target.value);
+    document.querySelector('#docs-cemail').addEventListener('input', e => docCurrent.client.email = e.target.value);
+    document.querySelector('#docs-caddress').addEventListener('input', e => docCurrent.client.address = e.target.value);
+    document.querySelector('#docs-paid').addEventListener('input', e => docCurrent.payment.amountPaid = Number(e.target.value) || 0);
+    document.querySelector('#docs-method').addEventListener('change', e => docCurrent.payment.method = e.target.value);
+    document.querySelector('#docs-notes').addEventListener('input', e => docCurrent.notesHtml = e.target.value);
+
+    document.querySelector('#docs-add-item').addEventListener('click', () => {
+      docCurrent.items.push({ name:'', dimensions:'', wood:'', qty:1, unitPrice:'' });
+      renderDocItems();
+    });
+    document.querySelector('#docs-items-table tbody').addEventListener('input', e => {
+      const tr = e.target.closest('tr'); if (!tr) return;
+      const idx = parseInt(tr.dataset.idx, 10);
+      const f = e.target.dataset.f;
+      if (!f) return;
+      let v = e.target.value;
+      if (f === 'qty' || f === 'unitPrice') v = v === '' ? '' : Number(v);
+      docCurrent.items[idx][f] = v;
+      const total = (Number(docCurrent.items[idx].qty)||0) * (Number(docCurrent.items[idx].unitPrice)||0);
+      tr.children[5].textContent = total ? docFcfa(total) : '—';
+      const grand = docCurrent.items.reduce((s,it) => s + (Number(it.qty)||0) * (Number(it.unitPrice)||0), 0);
+      document.querySelector('#docs-total').textContent = docFcfa(grand);
+    });
+    document.querySelector('#docs-items-table tbody').addEventListener('click', e => {
+      if (e.target.dataset.rm != null) {
+        docCurrent.items.splice(parseInt(e.target.dataset.rm, 10), 1);
+        if (docCurrent.items.length === 0) docCurrent.items.push({ name:'', dimensions:'', wood:'', qty:1, unitPrice:'' });
+        renderDocItems();
+      }
+    });
+
+    document.querySelector('#docs-order').addEventListener('change', async e => {
+      const orderId = e.target.value;
+      if (!orderId || !window.OrderService) return;
+      try {
+        const o = await window.OrderService.getById(orderId);
+        if (!o) return;
+        docCurrent.orderId = orderId;
+        docCurrent.client.name = o.customer_name || '';
+        docCurrent.client.phone = o.phone || '';
+        docCurrent.client.address = o.address || '';
+        document.querySelector('#docs-cname').value = docCurrent.client.name;
+        document.querySelector('#docs-cphone').value = docCurrent.client.phone;
+        document.querySelector('#docs-caddress').value = docCurrent.client.address;
+        if (Array.isArray(o.items) && o.items.length) {
+          docCurrent.items = o.items.map(it => ({
+            name: it.name || it.id || '', dimensions: '', wood: it.wood || '',
+            qty: it.qty || 1, unitPrice: it.price || ''
+          }));
+          renderDocItems();
+        }
+        docCurrent.payment.method = o.payment_method || '';
+        docCurrent.payment.amountPaid = Number(o.amount_paid) || 0;
+        document.querySelector('#docs-paid').value = docCurrent.payment.amountPaid;
+        document.querySelector('#docs-method').value = docCurrent.payment.method;
+        if (o.payment_confirmed && document.querySelector('#docs-type').value !== 'invoice') {
+          document.querySelector('#docs-type').value = 'invoice';
+          docCurrent.type = 'invoice';
+          docCurrent.id = docGenId('FAC');
+          document.querySelector('#docs-id').value = docCurrent.id;
+        }
+      } catch (err) { console.error('[docs] load order:', err); }
+    });
+
+    document.querySelector('#docs-preview').addEventListener('click', docPreview);
+    document.querySelector('#docs-print').addEventListener('click', docPrint);
+    document.querySelector('#docs-download').addEventListener('click', docDownload);
+    document.querySelector('#docs-reset').addEventListener('click', () => {
+      if (!confirm('Réinitialiser le formulaire ?')) return;
+      docCurrent = docEmpty(document.querySelector('#docs-type').value || 'quote');
+      document.querySelector('#docs-id').value = docCurrent.id;
+      document.querySelector('#docs-date').value = docCurrent.date;
+      ['cname','cphone','cemail','caddress','paid','notes'].forEach(k => {
+        const el = document.querySelector('#docs-' + k);
+        if (el) el.value = '';
+      });
+      document.querySelector('#docs-method').value = '';
+      document.querySelector('#docs-order').value = '';
+      renderDocItems();
+    });
+  }
+
+  function docPreview() {
+    const w = window.open('', '_blank', 'width=900,height=1100');
+    if (!w) { alert('Pop-up bloquée par le navigateur. Autorisez les pop-ups pour aperçu.'); return; }
+    w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + docCurrent.id + ' — Aperçu</title><style>@page{margin:0;size:A4;}body{margin:0;background:#3a342a;padding:20px;}</style></head><body>' + buildInvoicePdfHTML(docCurrent) + '</body></html>');
+    w.document.close();
+  }
+
+  function docPrint() {
+    const w = window.open('', '_blank');
+    if (!w) { alert('Pop-up bloquée par le navigateur. Autorisez les pop-ups pour imprimer.'); return; }
+    w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + docCurrent.id + '</title><style>@page{margin:0;size:A4;}body{margin:0;}</style></head><body>' + buildInvoicePdfHTML(docCurrent) + '<script>window.onload=function(){setTimeout(function(){window.print();},300);};</script></body></html>');
+    w.document.close();
+  }
+
+  async function docDownload() {
+    if (!window.html2pdf) {
+      toast('⚠ Téléchargement direct indisponible (CDN bloqué). Utilisez "Imprimer / Enregistrer PDF".', '#c89968');
+      // Tente quand même de charger html2pdf
+      try {
+        await new Promise((res, rej) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+          s.onload = res; s.onerror = () => rej(new Error('CDN bloqué'));
+          document.head.appendChild(s);
+        });
+      } catch (e) { return; }
+    }
+    const html = buildInvoicePdfHTML(docCurrent);
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    container.style.position = 'fixed'; container.style.top = '-99999px';
+    document.body.appendChild(container);
+    try {
+      await window.html2pdf().from(container.firstElementChild).set({
+        margin: 0, filename: docCurrent.id + '.pdf',
+        image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#fbf7ed' },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      }).save();
+      // Sauvegarde invoice_id dans Supabase si lié à une commande
+      if (docCurrent.type === 'invoice' && docCurrent.orderId && window.HBT_CONFIG && window.HBT_CONFIG.isSupabaseReady && window.HBT_CONFIG.isSupabaseReady()) {
+        try {
+          await fetch(window.HBT_CONFIG.supabase.url + '/rest/v1/orders?id=eq.' + encodeURIComponent(docCurrent.orderId), {
+            method: 'PATCH',
+            headers: {
+              apikey: window.HBT_CONFIG.supabase.anonKey,
+              Authorization: 'Bearer ' + window.HBT_CONFIG.supabase.anonKey,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ invoice_id: docCurrent.id, updated_at: new Date().toISOString() })
+          });
+        } catch (sbErr) { console.warn('[docs] Save invoice_id:', sbErr.message); }
+      }
+      toast('✓ PDF téléchargé : <strong>' + escapeHtml(docCurrent.id) + '</strong>', '#2e8a56');
+    } catch (e) {
+      console.error('[docs] PDF gen:', e);
+      toast('❌ Erreur génération PDF — utilisez "Imprimer" pour enregistrer en PDF', '#c45b5b');
+    } finally {
+      container.remove();
+    }
+  }
+
+  async function loadDocsPaidOrders() {
+    const box = document.querySelector('#docs-paid-orders');
+    if (!box || !window.OrderService) return;
+    try {
+      const all = await window.OrderService.list();
+      const paid = (all || []).filter(o => o.payment_confirmed && !o.invoice_id);
+      if (paid.length === 0) {
+        box.innerHTML = '<em style="color:var(--muted);">Aucune commande payée en attente de facture.</em>';
+        return;
+      }
+      box.innerHTML = paid.map(o => `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:0.8rem;padding:0.55rem 0;border-bottom:1px solid rgba(46,138,86,0.15);flex-wrap:wrap;">
+          <div style="flex:1;min-width:200px;">
+            <strong style="font-family:Menlo,monospace;color:#5cc488;">${escapeHtml(o.id)}</strong>
+            <span style="color:var(--muted);font-size:0.85rem;"> · ${escapeHtml(o.customer_name || '?')}</span>
+            ${o.total ? '<span style="color:var(--ivory-dim);font-size:0.85rem;"> · ' + docFcfa(o.total) + '</span>' : ''}
+          </div>
+          <button type="button" data-paid="${escapeHtml(o.id)}" style="padding:0.45rem 0.9rem;font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;background:var(--gold,#c89968);border:none;color:#fff;cursor:pointer;border-radius:2px;">Générer facture</button>
+        </div>`).join('');
+      box.querySelectorAll('[data-paid]').forEach(b => {
+        b.addEventListener('click', () => {
+          document.querySelector('#docs-type').value = 'invoice';
+          document.querySelector('#docs-type').dispatchEvent(new Event('change'));
+          document.querySelector('#docs-order').value = b.dataset.paid;
+          document.querySelector('#docs-order').dispatchEvent(new Event('change'));
+          document.querySelector('#docs-id').scrollIntoView({ behavior:'smooth', block:'start' });
+        });
+      });
+    } catch (e) { box.textContent = 'Erreur : ' + e.message; }
+  }
+
+  async function loadDocsExistingInvoices() {
+    const box = document.querySelector('#docs-existing-invoices');
+    if (!box || !window.OrderService) return;
+    try {
+      const all = await window.OrderService.list();
+      const inv = (all || []).filter(o => o.invoice_id);
+      if (inv.length === 0) {
+        box.innerHTML = '<em style="color:var(--muted);">Aucune facture encore générée.</em>';
+        return;
+      }
+      box.innerHTML = inv.map(o => `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:0.8rem;padding:0.55rem 0;border-bottom:1px solid rgba(200,153,104,0.15);flex-wrap:wrap;">
+          <div style="flex:1;min-width:200px;">
+            <strong style="font-family:Menlo,monospace;color:var(--gold);">${escapeHtml(o.invoice_id)}</strong>
+            <span style="color:var(--muted);font-size:0.85rem;"> · ${escapeHtml(o.customer_name || '?')}</span>
+            <span style="color:var(--ivory-dim);font-size:0.8rem;"> · Cmd: ${escapeHtml(o.id)}</span>
+          </div>
+          <button type="button" data-regen="${escapeHtml(o.id)}" style="background:transparent;border:1px solid var(--gold);color:var(--gold);padding:0.4rem 0.8rem;font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:2px;">Re-télécharger</button>
+        </div>`).join('');
+      box.querySelectorAll('[data-regen]').forEach(b => {
+        b.addEventListener('click', () => {
+          document.querySelector('#docs-type').value = 'invoice';
+          document.querySelector('#docs-type').dispatchEvent(new Event('change'));
+          document.querySelector('#docs-order').value = b.dataset.regen;
+          document.querySelector('#docs-order').dispatchEvent(new Event('change'));
+          setTimeout(docDownload, 400);
+        });
+      });
+    } catch (e) { box.textContent = 'Erreur : ' + e.message; }
+  }
+
+  async function loadDocsOrdersDropdown() {
+    if (!window.OrderService) return;
+    try {
+      const all = await window.OrderService.list();
+      const sel = document.querySelector('#docs-order');
+      if (!sel) return;
+      (all || []).forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.id;
+        opt.textContent = o.id + ' — ' + (o.customer_name || '?');
+        sel.appendChild(opt);
+      });
+    } catch (e) { console.warn('[docs] orders dropdown:', e.message); }
   }
 
   /* ===== BOOT ===== */
