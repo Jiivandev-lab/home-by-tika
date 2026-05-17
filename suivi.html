@@ -364,6 +364,12 @@
           <p style="color: var(--muted); margin-bottom: 0.6rem; font-size:0.92rem;">Une question sur votre commande ?</p>
           <a href="https://wa.me/2250748738671?text=Bonjour%20HOME%20BY%20TIKA%2C%20je%20souhaite%20des%20informations%20sur%20ma%20commande%20${encodeURIComponent(o.id)}" class="btn btn-ghost" target="_blank">Nous contacter</a>
         </div>
+
+        <!-- Politique annulation / modification -->
+        <div style="margin-top: 1.4rem; padding: 1rem 1.2rem; background: rgba(200,153,104,0.06); border-left: 3px solid var(--gold); border-radius: 2px; font-size: 0.88rem; color: var(--ivory-dim); line-height: 1.55;">
+          <strong style="color: var(--gold); display: block; margin-bottom: 0.4rem; font-size: 0.72rem; letter-spacing: 1.5px; text-transform: uppercase;">Annulation ou modification</strong>
+          Pour toute annulation ou modification, contactez HOME BY TIKA en mentionnant votre numéro de commande <strong style="color: var(--gold); font-family: Menlo, monospace;">${escapeHtml(o.id)}</strong>.
+        </div>
       </div>`;
   }
 

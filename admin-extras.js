@@ -678,18 +678,36 @@
      ============================================================ */
   // 10 statuts complets HOME BY TIKA + Annulée. Ordre = progression réelle.
   const ORDER_STATUSES_ADMIN = [
+    // Progression normale
     { key: 'received',           label: 'En attente de paiement', color: '#8a7860' },
     { key: 'payment_confirmed',  label: 'Paiement confirmé',      color: '#7a6042' },
-    { key: 'design_approved',    label: 'Design validé',       color: '#8a5a2a' },
-    { key: 'wood_prep',          label: 'Bois / matériel préparé', color: '#a06b2a' },
-    { key: 'preparing',          label: 'En fabrication',      color: '#b48249' },
-    { key: 'varnishing',         label: 'Finition / vernissage', color: '#c89968' },
-    { key: 'quality_check',      label: 'Contrôle qualité',    color: '#d4a766' },
-    { key: 'delivery_scheduled', label: 'Livraison programmée',color: '#dab07b' },
-    { key: 'shipping',           label: 'En livraison',        color: '#e0b878' },
-    { key: 'delivered',          label: 'Livrée',              color: '#2e8a56' },
-    { key: 'cancelled',          label: 'Annulée',             color: '#c45b5b' }
+    { key: 'design_approved',    label: 'Design validé',          color: '#8a5a2a' },
+    { key: 'wood_prep',          label: 'Bois / matériel préparé',color: '#a06b2a' },
+    { key: 'preparing',          label: 'En fabrication',         color: '#b48249' },
+    { key: 'varnishing',         label: 'Finition / vernissage',  color: '#c89968' },
+    { key: 'quality_check',      label: 'Contrôle qualité',       color: '#d4a766' },
+    { key: 'delivery_scheduled', label: 'Livraison programmée',   color: '#dab07b' },
+    { key: 'shipping',           label: 'En livraison',           color: '#e0b878' },
+    { key: 'delivered',          label: 'Livrée',                 color: '#2e8a56' },
+    // Annulation pré-paiement
+    { key: 'cancelled',          label: 'Annulée',                color: '#c45b5b' },
+    { key: 'client_desisted',    label: 'Client désisté',         color: '#a85c5c' },
+    { key: 'abandoned',          label: 'Commande abandonnée',    color: '#8c6060' },
+    // Post-livraison
+    { key: 'returned',           label: 'Produit retourné',       color: '#b87f5c' },
+    { key: 'refund_pending',     label: 'Remboursement à traiter',color: '#c89968' },
+    { key: 'refunded',           label: 'Remboursé',              color: '#7a5a7a' },
+    { key: 'exchange_requested', label: 'Échange demandé',        color: '#8a7060' },
+    { key: 'dispute',            label: 'Litige client',          color: '#c45b5b' }
   ];
+
+  // Catégories de statuts pour les filtres
+  const STATUS_GROUPS = {
+    active:    ['received','payment_confirmed','design_approved','wood_prep','preparing','varnishing','quality_check','delivery_scheduled','shipping','delivered'],
+    cancelled: ['cancelled','client_desisted','abandoned'],
+    refunded:  ['returned','refund_pending','refunded','exchange_requested'],
+    dispute:   ['dispute']
+  };
 
   // Statuts hérités (anciennes commandes) → mappage transparent
   const LEGACY_STATUS_LABELS = {
@@ -727,6 +745,14 @@
 
       <div class="hbt-orders-controls">
         <input type="text" id="ord-search" placeholder="Rechercher : numéro, nom, téléphone, adresse…">
+        <select id="ord-filter-view">
+          <option value="active">Actives (par défaut)</option>
+          <option value="all">Toutes (sauf archivées)</option>
+          <option value="cancelled">Annulées</option>
+          <option value="refunded">Retours / Remboursements</option>
+          <option value="dispute">Litiges</option>
+          <option value="archived">Archivées</option>
+        </select>
         <select id="ord-filter-status">
           <option value="">Tous statuts</option>
           ${ORDER_STATUSES_ADMIN.map(s => `<option value="${s.key}">${s.label}</option>`).join('')}
@@ -790,14 +816,34 @@
     if (!tbody) return;
     const q = ($('#ord-search').value || '').trim().toLowerCase();
     const statusFilter = $('#ord-filter-status').value;
+    const viewFilter   = ($('#ord-filter-view') || {}).value || 'active';
 
     const filtered = allOrders.filter(o => {
+      // 1) Vue (archivées / actives / annulées / remboursées / litiges)
+      const isArchived = !!o.archived;
+      if (viewFilter === 'archived') { if (!isArchived) return false; }
+      else if (viewFilter === 'all')       { if (isArchived) return false; }
+      else if (viewFilter === 'active')    {
+        if (isArchived) return false;
+        if (!STATUS_GROUPS.active.includes(o.status)) return false;
+      }
+      else if (viewFilter === 'cancelled') {
+        if (isArchived) return false;
+        if (!STATUS_GROUPS.cancelled.includes(o.status)) return false;
+      }
+      else if (viewFilter === 'refunded')  {
+        if (isArchived) return false;
+        if (!STATUS_GROUPS.refunded.includes(o.status)) return false;
+      }
+      else if (viewFilter === 'dispute')   {
+        if (isArchived) return false;
+        if (!STATUS_GROUPS.dispute.includes(o.status)) return false;
+      }
+      // 2) Statut précis
       if (statusFilter && o.status !== statusFilter) return false;
+      // 3) Recherche libre
       if (q) {
-        // Recherche large : ID, nom, téléphone, adresse, notes
-        const blob = [
-          o.id, o.customer_name, o.phone, o.address, o.notes
-        ].filter(Boolean).join(' ').toLowerCase();
+        const blob = [o.id, o.customer_name, o.phone, o.address, o.notes].filter(Boolean).join(' ').toLowerCase();
         if (blob.indexOf(q) === -1) return false;
       }
       return true;
@@ -845,6 +891,8 @@
   function wireOrders() {
     $('#ord-search').addEventListener('input', () => renderOrders());
     $('#ord-filter-status').addEventListener('change', () => renderOrders());
+    const viewSel = $('#ord-filter-view');
+    if (viewSel) viewSel.addEventListener('change', () => renderOrders());
     $('#ord-refresh').addEventListener('click', () => loadOrders());
 
     // Délégation : update statut (sauvegarde Supabase instantanée)
@@ -956,7 +1004,7 @@
           <ul style="margin:0.4rem 0 0 1.2rem;font-size:0.85rem;color:var(--ivory-dim,#d4c8b3);">${historyHTML || '<li>—</li>'}</ul>
         </div>
 
-        <!-- ACTIONS -->
+        <!-- ACTIONS PRINCIPALES -->
         <div style="display:flex;flex-wrap:wrap;gap:0.5rem;padding-top:1rem;border-top:1px solid var(--line,rgba(200,153,104,0.18));">
           <button type="button" id="ord-validate-payment" ${paid ? 'disabled style="opacity:0.55;cursor:not-allowed;"' : ''} class="hbt-btn-primary" style="padding:0.7rem 1.1rem;font-size:0.72rem;background:${paid ? '#5cc488' : '#2e8a56'};border:none;">${paid ? '✓ Paiement confirmé' : 'Valider le paiement'}</button>
           <button type="button" id="ord-generate-invoice" class="hbt-btn-primary" style="padding:0.7rem 1.1rem;font-size:0.72rem;" ${paid ? '' : 'disabled title="Confirmer le paiement avant" style="opacity:0.5;cursor:not-allowed;padding:0.7rem 1.1rem;font-size:0.72rem;"'}>Générer facture PDF</button>
@@ -964,6 +1012,15 @@
           <a href="suivi.html?id=${encodeURIComponent(o.id)}" target="_blank" style="margin-left:auto;color:var(--gold,#c89968);font-size:0.85rem;align-self:center;">Voir suivi client →</a>
         </div>
         ${o.invoice_id ? '<div style="margin-top:0.7rem;font-size:0.8rem;color:var(--muted);">Facture associée : <strong style="color:var(--gold);font-family:Menlo,monospace;">' + escapeHtml(o.invoice_id) + '</strong></div>' : ''}
+
+        <!-- ACTIONS SECONDAIRES : annulation / archive / remboursement -->
+        <div style="display:flex;flex-wrap:wrap;gap:0.4rem;padding-top:0.8rem;margin-top:0.8rem;border-top:1px dashed var(--line,rgba(200,153,104,0.18));">
+          <span style="font-size:0.7rem;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;align-self:center;margin-right:0.4rem;">Actions secondaires :</span>
+          ${!paid ? `<button type="button" id="ord-cancel" style="padding:0.55rem 0.9rem;font-size:0.7rem;letter-spacing:1.2px;text-transform:uppercase;border:1px solid #c45b5b;background:transparent;color:#c45b5b;cursor:pointer;border-radius:2px;">Annuler la commande</button>` : ''}
+          ${paid && o.status !== 'refunded' ? `<button type="button" id="ord-refund" style="padding:0.55rem 0.9rem;font-size:0.7rem;letter-spacing:1.2px;text-transform:uppercase;border:1px solid #7a5a7a;background:transparent;color:#a585a5;cursor:pointer;border-radius:2px;">Marquer remboursée</button>` : ''}
+          ${paid && o.status !== 'dispute' ? `<button type="button" id="ord-dispute" style="padding:0.55rem 0.9rem;font-size:0.7rem;letter-spacing:1.2px;text-transform:uppercase;border:1px solid #c45b5b;background:transparent;color:#e88c8c;cursor:pointer;border-radius:2px;">Litige</button>` : ''}
+          <button type="button" id="ord-archive" style="padding:0.55rem 0.9rem;font-size:0.7rem;letter-spacing:1.2px;text-transform:uppercase;border:1px solid var(--line);background:transparent;color:var(--ivory-dim);cursor:pointer;border-radius:2px;">${o.archived ? 'Désarchiver' : 'Archiver'}</button>
+        </div>
       </div>
     `;
     document.body.appendChild(modal);
@@ -1109,6 +1166,107 @@
     if (printBtn) printBtn.addEventListener('click', () => {
       window.open('suivi.html?id=' + encodeURIComponent(o.id) + '#facture', '_blank');
     });
+
+    // ===== ANNULER (pré-paiement uniquement) =====
+    const cancelBtn = $('#ord-cancel', modal);
+    if (cancelBtn) cancelBtn.addEventListener('click', async () => {
+      const reasons = ['Annuler — commande annulée', 'Client désisté', 'Commande abandonnée (pas de réponse)'];
+      const choice = prompt('Type d\'annulation :\n1 = Annulée\n2 = Client désisté\n3 = Abandonnée (pas de réponse)\n\nTapez le numéro :', '1');
+      if (!choice || !['1','2','3'].includes(choice.trim())) return;
+      const newStatus = choice.trim() === '1' ? 'cancelled' : (choice.trim() === '2' ? 'client_desisted' : 'abandoned');
+      const reason = prompt('Raison / Note (optionnel) :', '') || '';
+      try {
+        await patchOrder(o.id, { status: newStatus, cancellation_reason: reason, updated_at: new Date().toISOString() });
+        o.status = newStatus; o.cancellation_reason = reason;
+        toast('✓ Commande marquée : ' + statusInfo(newStatus).label, '#c89968');
+        closeModal(); loadOrders();
+      } catch (err) { toast('❌ ' + err.message, '#c45b5b'); }
+    });
+
+    // ===== MARQUER REMBOURSÉE (post-paiement) =====
+    const refundBtn = $('#ord-refund', modal);
+    if (refundBtn) refundBtn.addEventListener('click', async () => {
+      const amount = prompt('Montant remboursé (FCFA, vide = total payé) :', (o.amount_paid || o.total || ''));
+      if (amount === null) return;
+      const method = prompt('Mode de remboursement (Mobile Money / Virement / Espèces) :', o.payment_method || 'Mobile Money');
+      if (method === null) return;
+      const refundAmount = amount === '' ? (Number(o.amount_paid) || Number(o.total) || 0) : Number(amount);
+      try {
+        await patchOrder(o.id, {
+          status: 'refunded',
+          refund_amount: refundAmount,
+          refund_method: method,
+          refunded_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+        // Marque l'entrée comptable comme remboursée (conserve l'historique)
+        if (window.HBT_CONFIG && window.HBT_CONFIG.isSupabaseReady && window.HBT_CONFIG.isSupabaseReady()) {
+          try {
+            await fetch(window.HBT_CONFIG.supabase.url + '/rest/v1/accounting_entries?order_id=eq.' + encodeURIComponent(o.id), {
+              method: 'PATCH',
+              headers: {
+                apikey: window.HBT_CONFIG.supabase.anonKey,
+                Authorization: 'Bearer ' + window.HBT_CONFIG.supabase.anonKey,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ status: 'refunded', notes: 'Remboursé ' + refundAmount + ' FCFA (' + method + ')' })
+            });
+          } catch (accErr) { console.warn('[Refund] Compta non maj :', accErr.message); }
+        }
+        o.status = 'refunded'; o.refund_amount = refundAmount; o.refund_method = method;
+        toast('✓ Remboursement enregistré (compta marquée)', '#2e8a56');
+        closeModal(); loadOrders();
+      } catch (err) { toast('❌ ' + err.message, '#c45b5b'); }
+    });
+
+    // ===== LITIGE =====
+    const disputeBtn = $('#ord-dispute', modal);
+    if (disputeBtn) disputeBtn.addEventListener('click', async () => {
+      const note = prompt('Note sur le litige :', '');
+      if (note === null) return;
+      try {
+        await patchOrder(o.id, { status: 'dispute', cancellation_reason: note, updated_at: new Date().toISOString() });
+        o.status = 'dispute'; o.cancellation_reason = note;
+        toast('⚠ Commande passée en litige', '#c89968');
+        closeModal(); loadOrders();
+      } catch (err) { toast('❌ ' + err.message, '#c45b5b'); }
+    });
+
+    // ===== ARCHIVER / DÉSARCHIVER =====
+    const archiveBtn = $('#ord-archive', modal);
+    if (archiveBtn) archiveBtn.addEventListener('click', async () => {
+      const newArchived = !o.archived;
+      try {
+        await patchOrder(o.id, { archived: newArchived, updated_at: new Date().toISOString() });
+        o.archived = newArchived;
+        toast(newArchived ? '✓ Commande archivée' : '✓ Commande désarchivée', '#2e8a56');
+        closeModal(); loadOrders();
+      } catch (err) { toast('❌ ' + err.message, '#c45b5b'); }
+    });
+  }
+
+  /* Helper : PATCH générique sur orders (déduplique 5 appels Supabase) */
+  async function patchOrder(id, fields) {
+    if (!window.HBT_CONFIG || !window.HBT_CONFIG.isSupabaseReady || !window.HBT_CONFIG.isSupabaseReady()) {
+      throw new Error('Supabase non configuré');
+    }
+    const res = await fetch(window.HBT_CONFIG.supabase.url + '/rest/v1/orders?id=eq.' + encodeURIComponent(id), {
+      method: 'PATCH',
+      headers: {
+        apikey: window.HBT_CONFIG.supabase.anonKey,
+        Authorization: 'Bearer ' + window.HBT_CONFIG.supabase.anonKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(fields)
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      if (/archived.*does not exist|cancellation_reason.*does not exist|refund_amount.*does not exist/i.test(txt)) {
+        throw new Error('Colonnes manquantes — exécutez setup-cancellation.sql');
+      }
+      throw new Error('Supabase ' + res.status);
+    }
+    return true;
   }
 
   /* ============================================================
@@ -1338,12 +1496,14 @@
       return true;
     });
 
-    // KPIs (sur la liste filtrée)
+    // KPIs (sur la liste filtrée) — EXCLUT les entrées remboursées des totaux
+    // pour ne jamais surestimer le revenu net.
     const todayStr = todayISO();
     const monthStart = firstOfMonth();
     const yearStart = firstOfYear();
-    const sumIf = (cond) => filtered.filter(cond).reduce((s, e) => s + (Number(e.amount_paid) || 0), 0);
-    const countIf = (cond) => filtered.filter(cond).length;
+    const isActive = (e) => e.status !== 'refunded';
+    const sumIf = (cond) => filtered.filter(e => cond(e) && isActive(e)).reduce((s, e) => s + (Number(e.amount_paid) || 0), 0);
+    const countIf = (cond) => filtered.filter(e => cond(e) && isActive(e)).length;
 
     const dayTotal   = sumIf(e => isoDate(e.paid_at) === todayStr);
     const dayCount   = countIf(e => isoDate(e.paid_at) === todayStr);
@@ -1588,7 +1748,17 @@
     { key: 'discussion',  label: 'En discussion', color: '#b48249' },
     { key: 'quote_sent',  label: 'Devis envoyé',  color: '#d4a766' },
     { key: 'confirmed',   label: 'Confirmé',      color: '#2e8a56' },
-    { key: 'refused',     label: 'Refusé',        color: '#c45b5b' }
+    { key: 'refused',     label: 'Refusé',        color: '#c45b5b' },
+    { key: 'expired',     label: 'Expiré',        color: '#8c6060' },
+    { key: 'cancelled',   label: 'Annulé',        color: '#c45b5b' }
+  ];
+
+  const Q_CANCEL_REASONS = [
+    'Client ne répond plus',
+    'Prix refusé',
+    'Projet reporté',
+    'Doublon',
+    'Autre'
   ];
   function qStatusInfo(k) { return QUOTE_STATUSES.find(s => s.key === k) || QUOTE_STATUSES[0]; }
   let allQuotes = [];
@@ -1601,6 +1771,12 @@
 
         <div class="hbt-orders-controls">
           <input type="text" id="q-search" placeholder="Rechercher : nom, téléphone, produit, ville…">
+          <select id="q-view">
+            <option value="active">Actives (par défaut)</option>
+            <option value="all">Toutes (sauf archivées)</option>
+            <option value="cancelled">Annulées</option>
+            <option value="archived">Archivées</option>
+          </select>
           <select id="q-filter">
             <option value="">Tous statuts</option>
             ${QUOTE_STATUSES.map(s => `<option value="${s.key}">${s.label}</option>`).join('')}
@@ -1702,7 +1878,16 @@
     const q = (document.querySelector('#q-search').value || '').trim().toLowerCase();
     const statusFilter = document.querySelector('#q-filter').value;
 
+    const viewFilter = (document.querySelector('#q-view') || {}).value || 'active';
     const filtered = allQuotes.filter(o => {
+      const isArchived = !!o.archived;
+      const isCancelled = (o.status === 'cancelled');
+      if (viewFilter === 'archived') { if (!isArchived) return false; }
+      else if (viewFilter === 'cancelled') { if (isArchived || !isCancelled) return false; }
+      else if (viewFilter === 'all') { if (isArchived) return false; }
+      else /* active */ {
+        if (isArchived || isCancelled) return false;
+      }
       if (statusFilter && o.status !== statusFilter) return false;
       if (q) {
         const blob = [o.id, o.customer_name, o.phone, o.email, o.location, o.product, o.message].filter(Boolean).join(' ').toLowerCase();
@@ -1743,6 +1928,8 @@
   function wireQuoteRequests() {
     document.querySelector('#q-search').addEventListener('input', renderQuoteRows);
     document.querySelector('#q-filter').addEventListener('change', renderQuoteRows);
+    const qView = document.querySelector('#q-view');
+    if (qView) qView.addEventListener('change', renderQuoteRows);
     document.querySelector('#q-refresh').addEventListener('click', loadQuoteRequests);
 
     document.querySelector('#q-table tbody').addEventListener('change', async e => {
@@ -1837,6 +2024,13 @@
           <a href="${waLink}" target="_blank" rel="noopener" style="padding:0.7rem 1.1rem;font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;background:#25d366;color:#fff;text-decoration:none;border-radius:2px;font-weight:700;">Contacter sur WhatsApp</a>
           ${o.email ? `<a href="mailto:${escapeHtml(o.email)}?subject=${encodeURIComponent('Devis ' + o.id + ' - HOME BY TIKA')}" style="padding:0.7rem 1.1rem;font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;border:1px solid var(--gold);color:var(--gold);text-decoration:none;border-radius:2px;">Email</a>` : ''}
         </div>
+
+        <!-- ACTIONS SECONDAIRES demande devis -->
+        <div style="display:flex;flex-wrap:wrap;gap:0.4rem;padding-top:0.8rem;margin-top:0.8rem;border-top:1px dashed var(--line);">
+          <span style="font-size:0.7rem;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;align-self:center;margin-right:0.4rem;">Actions :</span>
+          ${o.status !== 'cancelled' ? `<button type="button" id="q-cancel-${o.id}" class="q-action-cancel" data-id="${escapeHtml(o.id)}" style="padding:0.55rem 0.9rem;font-size:0.7rem;letter-spacing:1.2px;text-transform:uppercase;border:1px solid #c45b5b;background:transparent;color:#c45b5b;cursor:pointer;border-radius:2px;">Annuler la demande</button>` : ''}
+          <button type="button" class="q-action-archive" data-id="${escapeHtml(o.id)}" data-archived="${o.archived ? '1' : '0'}" style="padding:0.55rem 0.9rem;font-size:0.7rem;letter-spacing:1.2px;text-transform:uppercase;border:1px solid var(--line);background:transparent;color:var(--ivory-dim);cursor:pointer;border-radius:2px;">${o.archived ? 'Désarchiver' : 'Archiver'}</button>
+        </div>
       </div>
     `;
     document.body.appendChild(modal);
@@ -1845,6 +2039,63 @@
 
     // Render zone devis
     renderQuoteZone(o);
+
+    // Annuler la demande
+    const qCancelBtn = modal.querySelector('.q-action-cancel');
+    if (qCancelBtn) qCancelBtn.addEventListener('click', async () => {
+      const r = prompt('Raison de l\'annulation :\n1 = Client ne répond plus\n2 = Prix refusé\n3 = Projet reporté\n4 = Doublon\n5 = Autre\n\nTapez le numéro :', '1');
+      if (!r) return;
+      const idx = parseInt(r, 10) - 1;
+      if (isNaN(idx) || idx < 0 || idx >= Q_CANCEL_REASONS.length) return;
+      const reason = Q_CANCEL_REASONS[idx];
+      const extra = idx === 4 ? (prompt('Précisez la raison :', '') || '') : '';
+      try {
+        await patchQuoteRequest(o.id, {
+          status: 'cancelled',
+          cancellation_reason: reason + (extra ? ' — ' + extra : ''),
+          updated_at: new Date().toISOString()
+        });
+        o.status = 'cancelled'; o.cancellation_reason = reason + (extra ? ' — ' + extra : '');
+        toast('✓ Demande annulée — ' + reason, '#c89968');
+        modal.remove(); loadQuoteRequests();
+      } catch (err) { toast('❌ ' + err.message, '#c45b5b'); }
+    });
+
+    // Archiver / Désarchiver
+    const qArchBtn = modal.querySelector('.q-action-archive');
+    if (qArchBtn) qArchBtn.addEventListener('click', async () => {
+      const newArchived = !o.archived;
+      try {
+        await patchQuoteRequest(o.id, { archived: newArchived, updated_at: new Date().toISOString() });
+        o.archived = newArchived;
+        toast(newArchived ? '✓ Demande archivée' : '✓ Demande désarchivée', '#2e8a56');
+        modal.remove(); loadQuoteRequests();
+      } catch (err) { toast('❌ ' + err.message, '#c45b5b'); }
+    });
+  }
+
+  /* Helper PATCH générique sur quote_requests */
+  async function patchQuoteRequest(id, fields) {
+    if (!window.HBT_CONFIG || !window.HBT_CONFIG.isSupabaseReady || !window.HBT_CONFIG.isSupabaseReady()) {
+      throw new Error('Supabase non configuré');
+    }
+    const res = await fetch(window.HBT_CONFIG.supabase.url + '/rest/v1/quote_requests?id=eq.' + encodeURIComponent(id), {
+      method: 'PATCH',
+      headers: {
+        apikey: window.HBT_CONFIG.supabase.anonKey,
+        Authorization: 'Bearer ' + window.HBT_CONFIG.supabase.anonKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(fields)
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      if (/archived.*does not exist|cancellation_reason.*does not exist/i.test(txt)) {
+        throw new Error('Colonnes manquantes — exécutez setup-cancellation.sql');
+      }
+      throw new Error('Supabase ' + res.status);
+    }
+    return true;
   }
 
   /* === Bloc "créer/voir devis" dans la modal === */
