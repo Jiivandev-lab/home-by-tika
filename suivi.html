@@ -229,6 +229,7 @@
 <script src="media-manifest.js"></script>
 <script src="i18n.js"></script>
 <script src="script.js"></script>
+<script src="quote-request.js"></script>
 <script>
 (function(){
   const form    = document.getElementById('track-form');
@@ -237,7 +238,7 @@
 
   // 10 statuts complets HOME BY TIKA dans l'ordre (sans Annulé)
   const STEPS = [
-    { key: 'received',           label: 'Commande reçue' },
+    { key: 'received',           label: 'En attente de paiement' },
     { key: 'payment_confirmed',  label: 'Paiement confirmé' },
     { key: 'design_approved',    label: 'Design validé' },
     { key: 'wood_prep',          label: 'Bois / matériel préparé' },

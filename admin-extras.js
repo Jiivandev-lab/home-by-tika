@@ -678,8 +678,8 @@
      ============================================================ */
   // 10 statuts complets HOME BY TIKA + Annulée. Ordre = progression réelle.
   const ORDER_STATUSES_ADMIN = [
-    { key: 'received',           label: 'Commande reçue',      color: '#8a7860' },
-    { key: 'payment_confirmed',  label: 'Paiement confirmé',   color: '#7a6042' },
+    { key: 'received',           label: 'En attente de paiement', color: '#8a7860' },
+    { key: 'payment_confirmed',  label: 'Paiement confirmé',      color: '#7a6042' },
     { key: 'design_approved',    label: 'Design validé',       color: '#8a5a2a' },
     { key: 'wood_prep',          label: 'Bois / matériel préparé', color: '#a06b2a' },
     { key: 'preparing',          label: 'En fabrication',      color: '#b48249' },
