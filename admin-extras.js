@@ -1830,6 +1830,9 @@
           <ul style="margin:0.4rem 0 0 1.2rem;font-size:0.85rem;color:var(--ivory-dim);">${histList}</ul>
         </div>
 
+        <!-- BLOC DEVIS (création ou affichage si déjà créé) -->
+        <div id="q-quote-zone" style="margin-bottom:1.4rem;"></div>
+
         <div style="display:flex;flex-wrap:wrap;gap:0.5rem;padding-top:1rem;border-top:1px solid var(--line);">
           <a href="${waLink}" target="_blank" rel="noopener" style="padding:0.7rem 1.1rem;font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;background:#25d366;color:#fff;text-decoration:none;border-radius:2px;font-weight:700;">Contacter sur WhatsApp</a>
           ${o.email ? `<a href="mailto:${escapeHtml(o.email)}?subject=${encodeURIComponent('Devis ' + o.id + ' - HOME BY TIKA')}" style="padding:0.7rem 1.1rem;font-size:0.72rem;letter-spacing:1.5px;text-transform:uppercase;border:1px solid var(--gold);color:var(--gold);text-decoration:none;border-radius:2px;">Email</a>` : ''}
@@ -1839,6 +1842,205 @@
     document.body.appendChild(modal);
     modal.querySelectorAll('.q-modal-close').forEach(b => b.addEventListener('click', () => modal.remove()));
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+    // Render zone devis
+    renderQuoteZone(o);
+  }
+
+  /* === Bloc "créer/voir devis" dans la modal === */
+  function renderQuoteZone(o) {
+    const zone = document.querySelector('#q-quote-zone');
+    if (!zone) return;
+    const prefContact = (o.preferred_contact || 'whatsapp');
+
+    if (o.quote_id) {
+      // Devis déjà créé → boutons d'envoi
+      const url = location.origin + location.pathname.replace(/[^\/]*$/, '') + 'devis.html?id=' + encodeURIComponent(o.quote_id);
+      const waMsg = encodeURIComponent('Bonjour ' + (o.customer_name || '') + ', votre devis HOME BY TIKA ' + o.quote_id + ' est disponible ici :\n' + url + '\n\nMerci de votre confiance.');
+      const phoneClean = String(o.phone || '').replace(/[^\d+]/g, '');
+      const waUrl = 'https://wa.me/' + phoneClean + '?text=' + waMsg;
+      const emailSubj = encodeURIComponent('Votre devis HOME BY TIKA ' + o.quote_id);
+      const emailBody = encodeURIComponent('Bonjour ' + (o.customer_name || '') + ',\n\nVotre devis personnalisé HOME BY TIKA est disponible ici :\n' + url + '\n\nVous pouvez le consulter en ligne et télécharger la version PDF directement depuis la page.\n\nN\'hésitez pas à nous contacter pour toute question.\n\nHOME BY TIKA');
+      const mailto = o.email ? 'mailto:' + encodeURIComponent(o.email) + '?subject=' + emailSubj + '&body=' + emailBody : '#';
+      zone.innerHTML = `
+        <div style="background:rgba(46,138,86,0.06);border-left:3px solid #2e8a56;padding:1rem 1.2rem;border-radius:2px;">
+          <strong style="color:#5cc488;font-size:0.78rem;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;display:block;margin-bottom:0.6rem;">✓ Devis créé · <span style="font-family:Menlo,monospace;color:var(--gold);">${escapeHtml(o.quote_id)}</span></strong>
+          <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.7rem;">
+            <a href="${url}" target="_blank" rel="noopener" style="padding:0.5rem 0.9rem;font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;border:1px solid var(--gold);color:var(--gold);text-decoration:none;border-radius:2px;">Ouvrir la page</a>
+            <button type="button" id="q-copy-link" data-url="${url}" style="padding:0.5rem 0.9rem;font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;border:1px solid var(--gold);color:var(--gold);background:transparent;cursor:pointer;border-radius:2px;">Copier le lien</button>
+            <a href="${waUrl}" target="_blank" rel="noopener" style="padding:0.5rem 0.9rem;font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;background:#25d366;color:#fff;text-decoration:none;border-radius:2px;font-weight:700;">Envoyer WhatsApp</a>
+            ${o.email ? `<a href="${mailto}" style="padding:0.5rem 0.9rem;font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;background:var(--gold);color:#fff;text-decoration:none;border-radius:2px;font-weight:700;">Envoyer Email</a>` : ''}
+            <button type="button" id="q-edit-quote" style="padding:0.5rem 0.9rem;font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;border:1px dashed var(--line);color:var(--ivory-dim);background:transparent;cursor:pointer;border-radius:2px;">Modifier</button>
+          </div>
+          <div style="font-size:0.78rem;color:var(--muted);">Préférence client : <strong style="color:${prefContact==='email' ? 'var(--gold)' : '#5cc488'};">${prefContact === 'email' ? '📧 Email' : '💬 WhatsApp'}</strong></div>
+        </div>
+      `;
+      document.querySelector('#q-copy-link').addEventListener('click', e => {
+        const u = e.currentTarget.dataset.url;
+        navigator.clipboard.writeText(u).then(() => toast('✓ Lien copié dans le presse-papier', '#2e8a56'));
+      });
+      document.querySelector('#q-edit-quote').addEventListener('click', () => showQuoteEditor(o));
+    } else {
+      // Pas de devis → bouton "Créer un devis"
+      zone.innerHTML = `
+        <div style="background:rgba(200,153,104,0.06);border-left:3px solid var(--gold);padding:1rem 1.2rem;border-radius:2px;">
+          <strong style="color:var(--gold);font-size:0.78rem;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;display:block;margin-bottom:0.5rem;">Aucun devis créé</strong>
+          <p style="color:var(--ivory-dim);font-size:0.88rem;margin:0 0 0.7rem;">Créez un devis pré-rempli depuis les infos du client. Vous obtiendrez un lien public à envoyer (WhatsApp / Email).</p>
+          <button type="button" id="q-create-quote" class="hbt-btn-primary" style="padding:0.6rem 1.2rem;font-size:0.72rem;">+ Créer un devis</button>
+          <span style="margin-left:0.6rem;color:var(--muted);font-size:0.8rem;">Préférence client : <strong style="color:${prefContact==='email' ? 'var(--gold)' : '#5cc488'};">${prefContact === 'email' ? '📧 Email' : '💬 WhatsApp'}</strong></span>
+        </div>
+      `;
+      document.querySelector('#q-create-quote').addEventListener('click', () => showQuoteEditor(o));
+    }
+  }
+
+  /* === Éditeur devis dans une modal-fille (overlay) === */
+  function showQuoteEditor(o) {
+    const isEdit = !!o.quote_id;
+    const newId = o.quote_id || ('DEV-' + new Date().toISOString().slice(2,10).replace(/-/g,'') + '-' +
+                                  Math.random().toString(36).slice(2,6).toUpperCase());
+    const items = (Array.isArray(o.quote_items) && o.quote_items.length) ? o.quote_items.slice() : [{
+      name: o.product || '', dimensions: o.dimensions || '', wood: o.wood || '', qty: 1, unit_price: ''
+    }];
+    const conditions = o.quote_conditions || 'Devis valable 30 jours · Acompte 50% à la commande · Solde à la livraison.';
+    const notes = o.quote_notes || '';
+    const delay = o.quote_delay || '';
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto;backdrop-filter:blur(4px);';
+    overlay.innerHTML = `
+      <div style="background:var(--bg-card,#1a1820);border:1px solid var(--gold);padding:1.8rem;border-radius:4px;max-width:760px;width:100%;font-family:Inter,sans-serif;color:var(--ivory);margin:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;gap:0.6rem;flex-wrap:wrap;">
+          <h3 style="color:var(--gold);font-family:'Playfair Display',serif;margin:0;font-size:1.4rem;">${isEdit ? 'Modifier' : 'Créer'} le devis</h3>
+          <div style="display:flex;gap:0.4rem;align-items:center;">
+            <span style="font-family:Menlo,monospace;color:var(--gold);">${escapeHtml(newId)}</span>
+            <button type="button" class="qe-close" style="background:transparent;border:1px solid var(--line);color:var(--ivory);padding:0.4rem 0.8rem;cursor:pointer;border-radius:2px;">Fermer</button>
+          </div>
+        </div>
+
+        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1.2rem;">Pré-rempli depuis la demande de <strong style="color:var(--ivory);">${escapeHtml(o.customer_name || '')}</strong>. Complétez prix, essence, dimensions, notes.</p>
+
+        <div class="hbt-form" style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem 1rem;margin-bottom:1rem;">
+          <div class="full" style="grid-column:1/-1;">
+            <label>Articles du devis</label>
+            <table class="hbt-items-table" id="qe-items">
+              <thead><tr>
+                <th>Désignation *</th><th>Dimensions</th><th>Essence</th><th>Qté</th><th>PU (FCFA)</th><th>Total</th><th></th>
+              </tr></thead>
+              <tbody></tbody>
+              <tfoot><tr>
+                <td colspan="5" style="text-align:right;color:var(--gold);font-size:0.78rem;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;padding-top:0.6rem;">Total général</td>
+                <td id="qe-total" style="text-align:right;font-size:1.1rem;color:var(--ivory);font-weight:600;padding-top:0.6rem;">0 FCFA</td><td></td>
+              </tr></tfoot>
+            </table>
+            <button type="button" id="qe-add" style="margin-top:0.5rem;background:transparent;border:1px solid var(--gold);color:var(--gold);padding:0.4rem 0.9rem;font-size:0.75rem;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;border-radius:2px;">+ Ajouter une ligne</button>
+          </div>
+
+          <div><label>Délai estimé</label><input type="text" id="qe-delay" placeholder="ex: 4-6 semaines" value="${escapeHtml(delay)}"></div>
+          <div><label>Mode envoi préféré client</label>
+            <select id="qe-contact" disabled style="opacity:0.7;">
+              <option value="whatsapp"${o.preferred_contact !== 'email' ? ' selected' : ''}>💬 WhatsApp</option>
+              <option value="email"${o.preferred_contact === 'email' ? ' selected' : ''}>📧 Email</option>
+            </select></div>
+
+          <div class="full"><label>Conditions</label><textarea id="qe-conditions" rows="2" style="font-family:Inter,sans-serif;">${escapeHtml(conditions)}</textarea></div>
+          <div class="full"><label>Notes / Message au client</label><textarea id="qe-notes" rows="3" placeholder="Note personnelle, recommandations, message…" style="font-family:Inter,sans-serif;">${escapeHtml(notes)}</textarea></div>
+        </div>
+
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;padding-top:1rem;border-top:1px solid var(--line);">
+          <button type="button" id="qe-save" class="hbt-btn-primary" style="padding:0.85rem 1.4rem;font-size:0.78rem;">${isEdit ? 'Mettre à jour' : 'Valider le devis'}</button>
+          <button type="button" class="qe-close" style="padding:0.85rem 1.4rem;font-size:0.78rem;letter-spacing:1.5px;text-transform:uppercase;border:1px solid var(--line);background:transparent;color:var(--ivory);cursor:pointer;border-radius:2px;">Annuler</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.querySelectorAll('.qe-close').forEach(b => b.addEventListener('click', () => overlay.remove()));
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+    // Render items + wire
+    let qItems = items;
+    function renderQE() {
+      const tbody = overlay.querySelector('#qe-items tbody');
+      tbody.innerHTML = qItems.map((it, idx) => {
+        const total = (Number(it.qty)||0) * (Number(it.unit_price)||0);
+        return `<tr data-idx="${idx}">
+          <td><input type="text" data-f="name" value="${escapeHtml(it.name)}" placeholder="Nom du produit"></td>
+          <td><input type="text" data-f="dimensions" value="${escapeHtml(it.dimensions)}" placeholder="ex: 200×80"></td>
+          <td><input type="text" data-f="wood" value="${escapeHtml(it.wood)}" placeholder="Iroko, Teck…"></td>
+          <td><input type="number" data-f="qty" value="${escapeHtml(it.qty)}" min="1"></td>
+          <td><input type="number" data-f="unit_price" value="${escapeHtml(it.unit_price)}" min="0" step="1000" placeholder="0"></td>
+          <td style="color:var(--gold);font-weight:600;padding:0.4rem;">${total ? accFmt(total) : '—'}</td>
+          <td><button type="button" class="row-remove" data-rm="${idx}">×</button></td>
+        </tr>`;
+      }).join('');
+      const grand = qItems.reduce((s,it) => s + (Number(it.qty)||0) * (Number(it.unit_price)||0), 0);
+      overlay.querySelector('#qe-total').textContent = accFmt(grand);
+    }
+    renderQE();
+
+    overlay.querySelector('#qe-items tbody').addEventListener('input', e => {
+      const tr = e.target.closest('tr'); if (!tr) return;
+      const idx = parseInt(tr.dataset.idx, 10);
+      const f = e.target.dataset.f; if (!f) return;
+      let v = e.target.value;
+      if (f === 'qty' || f === 'unit_price') v = v === '' ? '' : Number(v);
+      qItems[idx][f] = v;
+      const total = (Number(qItems[idx].qty)||0) * (Number(qItems[idx].unit_price)||0);
+      tr.children[5].textContent = total ? accFmt(total) : '—';
+      const grand = qItems.reduce((s,it) => s + (Number(it.qty)||0) * (Number(it.unit_price)||0), 0);
+      overlay.querySelector('#qe-total').textContent = accFmt(grand);
+    });
+    overlay.querySelector('#qe-items tbody').addEventListener('click', e => {
+      if (e.target.dataset.rm != null) {
+        qItems.splice(parseInt(e.target.dataset.rm, 10), 1);
+        if (qItems.length === 0) qItems.push({ name:'', dimensions:'', wood:'', qty:1, unit_price:'' });
+        renderQE();
+      }
+    });
+    overlay.querySelector('#qe-add').addEventListener('click', () => {
+      qItems.push({ name:'', dimensions:'', wood:'', qty:1, unit_price:'' });
+      renderQE();
+    });
+
+    overlay.querySelector('#qe-save').addEventListener('click', async () => {
+      const total = qItems.reduce((s,it) => s + (Number(it.qty)||0) * (Number(it.unit_price)||0), 0);
+      const patch = {
+        quote_id: newId,
+        quote_items: qItems,
+        quote_notes: overlay.querySelector('#qe-notes').value,
+        quote_conditions: overlay.querySelector('#qe-conditions').value,
+        quote_delay: overlay.querySelector('#qe-delay').value,
+        quote_total: total,
+        quote_created_at: o.quote_created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      try {
+        if (window.HBT_CONFIG && window.HBT_CONFIG.isSupabaseReady && window.HBT_CONFIG.isSupabaseReady()) {
+          const res = await fetch(window.HBT_CONFIG.supabase.url + '/rest/v1/quote_requests?id=eq.' + encodeURIComponent(o.id), {
+            method: 'PATCH',
+            headers: {
+              apikey: window.HBT_CONFIG.supabase.anonKey,
+              Authorization: 'Bearer ' + window.HBT_CONFIG.supabase.anonKey,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(patch)
+          });
+          if (!res.ok) {
+            const txt = await res.text();
+            if (/quote_id.*does not exist|quote_items.*does not exist/i.test(txt)) {
+              throw new Error('Colonnes devis manquantes — exécutez setup-quote-requests.sql à jour');
+            }
+            throw new Error('Supabase ' + res.status);
+          }
+        }
+        Object.assign(o, patch);
+        toast('✓ Devis ' + newId + ' enregistré', '#2e8a56');
+        overlay.remove();
+        renderQuoteZone(o);  // refresh la zone avec les nouveaux boutons
+      } catch (err) {
+        toast('❌ ' + err.message, '#c45b5b');
+      }
+    });
   }
 
   /* ============================================================

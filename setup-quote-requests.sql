@@ -50,6 +50,17 @@ DROP POLICY IF EXISTS "Public delete quote_requests" ON quote_requests;
 CREATE POLICY "Public delete quote_requests"
   ON quote_requests FOR DELETE TO anon USING (true);
 
--- 4) Vérification (à exécuter séparément pour confirmer)
+-- 4) Colonnes pour le DEVIS généré par l'admin (workflow complet)
+--    Idempotent : peut être ré-exécuté sans risque
+ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS preferred_contact TEXT DEFAULT 'whatsapp';  -- whatsapp | email
+ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS quote_id          TEXT DEFAULT '';          -- DEV-260516-XXXX (généré quand devis créé)
+ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS quote_items       JSONB DEFAULT '[]'::jsonb;-- articles du devis [{name, dimensions, wood, qty, unit_price}]
+ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS quote_notes       TEXT DEFAULT '';
+ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS quote_conditions  TEXT DEFAULT '';
+ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS quote_delay       TEXT DEFAULT '';          -- ex: "4-6 semaines"
+ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS quote_total       INTEGER DEFAULT 0;
+ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS quote_created_at  TIMESTAMPTZ;              -- NULL = pas encore de devis généré
+
+-- 5) Vérification (à exécuter séparément pour confirmer)
 -- SELECT count(*) FROM quote_requests;
 -- → si la requête réussit, la table existe et est accessible.

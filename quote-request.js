@@ -191,6 +191,11 @@
             <input type="text" id="hbtq-budget" placeholder="ex: 500 000 — 1 200 000"></div>
           <div class="full"><label>Votre message</label>
             <textarea id="hbtq-message" placeholder="Décrivez votre projet, vos contraintes, vos inspirations…"></textarea></div>
+          <div class="full"><label>Mode de réception du devis préféré</label>
+            <select id="hbtq-contact">
+              <option value="whatsapp">WhatsApp (recommandé)</option>
+              <option value="email">Email</option>
+            </select></div>
         </form>
 
         <div class="hbt-q-error" id="hbt-q-error"></div>
@@ -286,7 +291,8 @@
       dimensions:    document.getElementById('hbtq-dim').value.trim(),
       wood:          document.getElementById('hbtq-wood').value,
       budget:        document.getElementById('hbtq-budget').value.trim(),
-      message:       document.getElementById('hbtq-message').value.trim()
+      message:       document.getElementById('hbtq-message').value.trim(),
+      preferred_contact: (document.getElementById('hbtq-contact') || {}).value || 'whatsapp'
     };
     if (!data.customer_name || !data.phone) {
       errBox.textContent = 'Nom et téléphone sont obligatoires.';
