@@ -1198,11 +1198,12 @@
   }
   function todayISO() { return new Date().toISOString().slice(0, 10); }
   function firstOfMonth() {
-    const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10);
+    const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d.toISOString().slice(0, 10);
   }
   function firstOfYear() {
-    const d = new Date(d.getFullYear ? d.getFullYear() : Date.now());
-    return new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10);
+    // Fix: pas de référence à `d` dans sa propre initialisation
+    const now = new Date();
+    return new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
   }
 
   function renderAccountingTab(container) {
@@ -1359,7 +1360,20 @@
     document.querySelector('#acc-kpi-year-count').textContent  = yearCount + ' paiement' + (yearCount > 1 ? 's' : '');
 
     if (filtered.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:1.8rem;">Aucune entrée comptable ne correspond aux critères.</td></tr>';
+      // Distingue : table vide vs filtres trop restrictifs
+      if (allAccEntries.length === 0) {
+        tbody.innerHTML = `
+          <tr><td colspan="9" style="text-align:center;padding:2.4rem 1rem;">
+            <div style="color:var(--gold,#c89968);font-size:2rem;margin-bottom:0.5rem;">✓</div>
+            <div style="color:var(--ivory,#f5ede0);font-size:1.05rem;margin-bottom:0.4rem;font-weight:600;">Aucun paiement confirmé pour le moment</div>
+            <div style="color:var(--muted,#8a7e6a);font-size:0.88rem;max-width:480px;margin:0 auto;line-height:1.55;">
+              Les paiements apparaîtront ici dès que vous aurez confirmé un paiement<br>
+              depuis l'onglet <strong style="color:var(--gold);">Gestion des commandes</strong> (bouton "Valider le paiement").
+            </div>
+          </td></tr>`;
+      } else {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:1.8rem;">Aucune entrée ne correspond aux filtres actifs.</td></tr>';
+      }
       return;
     }
 
