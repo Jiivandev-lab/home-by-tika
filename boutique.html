@@ -11,6 +11,27 @@
   <link rel="dns-prefetch" href="https://res.cloudinary.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <!-- CRITICAL CSS inline : applique IMMÉDIATEMENT le fond ivoire et compacte
+       la page-header pour que les produits soient visibles dès l'ouverture
+       (avant même que styles.css ne soit téléchargé). Mobile en priorité. -->
+  <style>
+    html, body { background: #f5ede0; margin: 0; }
+    body { color: #1a1410; }
+    /* Mobile : page-header ultra-compact */
+    @media (max-width: 720px) {
+      .page-header.shop-header { padding: 1rem 0 0.4rem !important; }
+      .page-header.shop-header h1 { font-size: clamp(1.4rem, 6vw, 1.9rem) !important; margin: 0.3rem 0 0.3rem !important; line-height: 1.1; }
+      .page-header.shop-header .hero-eyebrow { font-size: 0.65rem; letter-spacing: 2px; }
+      .page-header.shop-header p { font-size: 0.85rem; line-height: 1.4; margin: 0; opacity: 0.85; max-width: 100%; }
+      .shop-section { padding: 0.6rem 0 2rem !important; }
+      .filters { margin-bottom: 0.8rem !important; gap: 0.4rem !important; }
+      .filter-btn { font-size: 0.7rem !important; padding: 0.45rem 0.8rem !important; }
+    }
+    /* Très petit écran : on cache le paragraphe pour gagner encore plus de place */
+    @media (max-width: 480px) {
+      .page-header.shop-header p { display: none; }
+    }
+  </style>
 </head>
 <body>
 
@@ -22,6 +43,7 @@
       <li><a href="boutique.html" class="active" data-i18n="nav.shop">Boutique</a></li>
       <li><a href="galerie.html" data-i18n="nav.gallery">Galerie</a></li>
       <li><a href="apropos.html" data-i18n="nav.workshop">Atelier</a></li>
+      <li><a href="showroom.html" data-i18n="nav.showroom">Showroom</a></li>
       <li><a href="contact.html" data-i18n="nav.contact">Contact</a></li>
       <li><a href="localisation.html" data-i18n="nav.locate">Localisation</a></li>
       <li><a href="suivi.html" data-i18n="nav.tracking">Suivi commande</a></li>
