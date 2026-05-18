@@ -172,6 +172,7 @@ window.HBT_CATEGORIES = [
   { slug: 'mobilier',         label: 'Mobilier',     type: 'galerie', galleryTab: 'mobilier'    },
   { slug: 'atelier',          label: 'Atelier',      type: 'galerie', galleryTab: 'atelier'     },
   { slug: 'collections',      label: 'Collections',  type: 'galerie', galleryTab: 'collections' },
+  { slug: 'showroom',         label: 'Showroom',     type: 'galerie', galleryTab: 'showroom'    },
 
   /* Galeries d'AMBIANCE pour catégories produit (permet d'uploader des
      images de mise en situation sans créer de produit boutique) */
@@ -330,7 +331,7 @@ window.HBT_CATEGORIES = [
                     video: isVideo
                   }),
         thumbUrl: window.HBT_mediaUrl(category, m.id, {
-                    width: 500, crop: 'fill', gravity: 'auto',
+                    width: 400, crop: 'fill', gravity: 'auto',
                     video: isVideo
                   })
       };
@@ -432,7 +433,7 @@ window.HBT_CATEGORIES = [
             category: category,
             video:    isVideo,
             url:      r.secure_url || window.HBT_mediaUrl(category, id, { width: 1200, crop: 'fill', gravity: 'auto', video: isVideo }),
-            thumbUrl: window.HBT_mediaUrl(category, id, { width: 500, crop: 'fill', gravity: 'auto', video: isVideo })
+            thumbUrl: window.HBT_mediaUrl(category, id, { width: 400, crop: 'fill', gravity: 'auto', video: isVideo })
           };
         });
       } else if (window.HBT_DEBUG_MEDIA) {

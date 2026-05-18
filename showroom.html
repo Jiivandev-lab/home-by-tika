@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Showroom — HOME BY TIKA · Côte d'Ivoire</title>
+  <meta name="description" content="Visitez le showroom HOME BY TIKA à Abidjan — mobilier et portes en bois massif, finitions premium. Visite sur rendez-vous.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
+  <link rel="dns-prefetch" href="https://res.cloudinary.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* ===== Showroom — design premium ivoire/noir/doré ===== */
+    .showroom-intro {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: center;
+    }
+    @media (max-width: 900px) {
+      .showroom-intro { grid-template-columns: 1fr; gap: 2rem; }
+    }
+    .showroom-intro-visual {
+      aspect-ratio: 4/3;
+      background: linear-gradient(135deg, #f4ead2 0%, #e8dcbf 100%);
+      border: 1px solid var(--line);
+      position: relative;
+      overflow: hidden;
+      border-radius: 4px;
+    }
+    .showroom-intro-visual::after {
+      content: '';
+      position: absolute; inset: 16px;
+      border: 1px solid var(--gold);
+      opacity: 0.4;
+      pointer-events: none;
+    }
+    .showroom-intro-visual.has-image {
+      background-size: cover !important;
+      background-position: center !important;
+    }
+
+    /* ===== CAROUSEL immersif ===== */
+    .showroom-tour {
+      position: relative;
+      margin-top: 1.4rem;
+    }
+    .showroom-carousel {
+      display: flex;
+      gap: 1rem;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+      padding: 0.5rem 0 1.4rem;
+      scrollbar-width: thin;
+      scrollbar-color: var(--gold) transparent;
+    }
+    .showroom-carousel::-webkit-scrollbar { height: 6px; }
+    .showroom-carousel::-webkit-scrollbar-track { background: rgba(200,153,104,0.08); border-radius: 3px; }
+    .showroom-carousel::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 3px; }
+
+    .showroom-slide {
+      flex: 0 0 80%;
+      scroll-snap-align: center;
+      aspect-ratio: 16/10;
+      background: linear-gradient(135deg, #f4ead2 0%, #e8dcbf 100%);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 14px 30px rgba(60, 48, 32, 0.12);
+      transition: transform 0.4s ease;
+    }
+    @media (min-width: 720px) {
+      .showroom-slide { flex-basis: 65%; }
+    }
+    @media (min-width: 1100px) {
+      .showroom-slide { flex-basis: 52%; }
+    }
+    .showroom-slide img {
+      width: 100%; height: 100%;
+      object-fit: cover; display: block;
+      transition: transform 0.6s cubic-bezier(0.2, 0, 0.2, 1);
+    }
+    .showroom-slide:hover { transform: translateY(-3px); }
+    .showroom-slide:hover img { transform: scale(1.04); }
+
+    /* Flèches navigation */
+    .showroom-arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 48px; height: 48px;
+      background: rgba(20, 16, 12, 0.88);
+      color: var(--gold);
+      border: 1px solid rgba(200, 153, 104, 0.45);
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1.4rem;
+      line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 5;
+      transition: all 0.25s ease;
+      backdrop-filter: blur(4px);
+    }
+    .showroom-arrow:hover {
+      background: var(--gold);
+      color: #fff;
+      transform: translateY(-50%) scale(1.06);
+    }
+    .showroom-arrow.prev { left: -8px; }
+    .showroom-arrow.next { right: -8px; }
+    @media (max-width: 720px) {
+      .showroom-arrow { width: 40px; height: 40px; font-size: 1.1rem; }
+      .showroom-arrow.prev { left: 4px; }
+      .showroom-arrow.next { right: 4px; }
+    }
+
+    /* Indicateurs (dots) */
+    .showroom-dots {
+      display: flex;
+      gap: 0.4rem;
+      justify-content: center;
+      margin-top: 0.8rem;
+    }
+    .showroom-dots button {
+      width: 8px; height: 8px;
+      border: none;
+      background: rgba(200, 153, 104, 0.3);
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      padding: 0;
+    }
+    .showroom-dots button.active {
+      background: var(--gold);
+      transform: scale(1.4);
+    }
+
+    .showroom-empty {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 3rem 1.5rem;
+      border: 1px dashed var(--line);
+      border-radius: 4px;
+      color: var(--muted);
+      background: var(--bg-soft);
+      font-size: 0.92rem;
+    }
+
+    /* ===== Section RDV ===== */
+    .showroom-book {
+      background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-darker, var(--bg-card)) 100%);
+      border: 1px solid var(--line);
+      padding: 3rem 2rem;
+      border-radius: 4px;
+      text-align: center;
+      margin-top: 3rem;
+    }
+    .showroom-book h2 {
+      font-family: var(--serif);
+      color: var(--ivory);
+      margin-bottom: 0.8rem;
+    }
+    .showroom-book p {
+      color: var(--ivory-dim);
+      max-width: 580px;
+      margin: 0 auto 1.6rem;
+      line-height: 1.6;
+    }
+    .showroom-book .ctas {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+      justify-content: center;
+    }
+    .showroom-book .ctas .btn-wa {
+      background: #25d366;
+      color: #fff;
+      border: none;
+    }
+    .showroom-book .ctas .btn-wa:hover { background: #20bd5a; }
+
+    /* Infos pratiques */
+    .showroom-info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.4rem;
+      margin-top: 1.8rem;
+      padding-top: 1.6rem;
+      border-top: 1px solid var(--line);
+      text-align: left;
+    }
+    @media (max-width: 560px) {
+      .showroom-info { grid-template-columns: 1fr; gap: 1rem; }
+    }
+    .showroom-info .label {
+      color: var(--gold);
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+    .showroom-info .value {
+      color: var(--ivory);
+      font-size: 0.95rem;
+      line-height: 1.55;
+    }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="index.html" class="brand"><img src="logo-mark.svg" alt="" class="brand-icon"><span class="brand-text">HOME BY <em>TIKA</em><small>BOIS MASSIF · CÔTE D'IVOIRE</small></span></a>
+    <ul class="nav-links">
+      <li><a href="index.html" data-i18n="nav.home">Accueil</a></li>
+      <li><a href="boutique.html" data-i18n="nav.shop">Boutique</a></li>
+      <li><a href="galerie.html" data-i18n="nav.gallery">Galerie</a></li>
+      <li><a href="apropos.html" data-i18n="nav.workshop">Atelier</a></li>
+      <li><a href="showroom.html" class="active" data-i18n="nav.showroom">Showroom</a></li>
+      <li><a href="contact.html" data-i18n="nav.contact">Contact</a></li>
+      <li><a href="localisation.html" data-i18n="nav.locate">Localisation</a></li>
+      <li><a href="suivi.html" data-i18n="nav.tracking">Suivi commande</a></li>
+    </ul>
+    <div class="nav-actions">
+      <a href="panier.html" class="cart-btn">
+        <span data-i18n="nav.cart">Panier</span> <span class="cart-count" id="cart-count">0</span>
+      </a>
+    </div>
+  </nav>
+</header>
+
+<main>
+
+  <!-- HERO showroom -->
+  <section class="page-header">
+    <div class="container">
+      <span class="hero-eyebrow" data-i18n="showroom.eyebrow">Notre espace physique</span>
+      <h1 data-i18n="showroom.title">Découvrez notre showroom</h1>
+      <p data-i18n="showroom.subtitle">Explorez nos pièces exposées et l'ambiance HOME BY TIKA.</p>
+    </div>
+  </section>
+
+  <!-- INTRO : visuel + texte -->
+  <section class="section">
+    <div class="container">
+      <div class="showroom-intro">
+        <div class="showroom-intro-visual" id="showroom-hero-visual" aria-hidden="true"></div>
+        <div>
+          <span class="hero-eyebrow" data-i18n="showroom.eyebrow">Notre espace physique</span>
+          <h2 data-i18n="showroom.intro.title" style="font-family:var(--serif);margin-bottom:1rem;">Un lieu pensé pour révéler le bois</h2>
+          <p data-i18n="showroom.intro.lede" style="color:var(--ivory-dim);line-height:1.7;">Notre showroom à Songon présente nos plus belles créations en taille réelle — portes massives, salons sculptés, tables de famille, serrurerie en laiton. Touchez les essences, ressentez les finitions, imaginez vos pièces chez vous.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CAROUSEL immersif -->
+  <section class="section section-soft">
+    <div class="container">
+      <div class="section-head">
+        <span class="eyebrow" data-i18n="showroom.tour.title">Visite du showroom</span>
+        <h2 data-i18n="showroom.tour.title">Visite du showroom</h2>
+        <p data-i18n="showroom.tour.lede">Glissez horizontalement pour parcourir l'espace.</p>
+      </div>
+
+      <div class="showroom-tour">
+        <button type="button" class="showroom-arrow prev" id="sr-prev" aria-label="Précédent">‹</button>
+        <button type="button" class="showroom-arrow next" id="sr-next" aria-label="Suivant">›</button>
+        <div class="showroom-carousel" id="showroom-carousel">
+          <!-- Slides injectés dynamiquement -->
+          <div class="showroom-slide showroom-empty" id="showroom-empty-state" data-i18n="showroom.empty">
+            Les photos du showroom seront bientôt disponibles. Suivez-nous sur WhatsApp pour être informé.
+          </div>
+        </div>
+        <div class="showroom-dots" id="showroom-dots"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RDV : 3 boutons + infos pratiques -->
+  <section class="section">
+    <div class="container">
+      <div class="showroom-book">
+        <span class="hero-eyebrow" data-i18n="showroom.book">Prendre rendez-vous</span>
+        <h2 data-i18n="showroom.book">Prendre rendez-vous</h2>
+        <p data-i18n="showroom.book.lede">Notre équipe vous accueille du lundi au samedi. La visite se fait sur rendez-vous pour vous garantir une attention personnalisée.</p>
+
+        <div class="ctas">
+          <a href="https://wa.me/2250748738671?text=Bonjour%20HOME%20BY%20TIKA%2C%20je%20souhaite%20r%C3%A9server%20une%20visite%20du%20showroom." target="_blank" rel="noopener" class="btn btn-primary" data-quote-trigger style="background:var(--gold);">
+            <span data-i18n="showroom.cta.book">Réserver une visite</span>
+          </a>
+          <a href="https://wa.me/2250748738671?text=Bonjour%20HOME%20BY%20TIKA%2C%20je%20souhaite%20visiter%20le%20showroom." target="_blank" rel="noopener" class="btn btn-wa" style="background:#25d366;color:#fff;border-color:#25d366;">
+            <span data-i18n="showroom.cta.wa">WhatsApp HOME BY TIKA</span>
+          </a>
+          <a href="tel:+2250748738671" class="btn btn-ghost">
+            <span data-i18n="showroom.cta.call">Appeler HOME BY TIKA</span>
+          </a>
+        </div>
+
+        <div class="showroom-info">
+          <div>
+            <div class="label" data-i18n="showroom.address.label">Adresse</div>
+            <div class="value" data-i18n="showroom.address">Songon, Cité la Grâce — Abidjan, Côte d'Ivoire</div>
+          </div>
+          <div>
+            <div class="label" data-i18n="showroom.hours.label">Horaires</div>
+            <div class="value" data-i18n="showroom.hours">Lundi → Samedi, 9h → 18h · Sur rendez-vous</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col footer-brand">
+        <a href="index.html" class="brand"><img src="logo-mark.svg" alt="" class="brand-icon"><span class="brand-text">HOME BY <em>TIKA</em><small>BOIS MASSIF · CÔTE D'IVOIRE</small></span></a>
+        <p>Spécialiste du mobilier en bois massif et des portes haut de gamme en Côte d'Ivoire — Iroko, Framiré, Teck.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Navigation</h4>
+        <ul>
+          <li><a href="boutique.html" data-i18n="nav.shop">Boutique</a></li>
+          <li><a href="galerie.html" data-i18n="nav.gallery">Galerie</a></li>
+          <li><a href="showroom.html" data-i18n="nav.showroom">Showroom</a></li>
+          <li><a href="apropos.html" data-i18n="nav.workshop">Atelier</a></li>
+          <li><a href="contact.html" data-i18n="nav.contact">Contact</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <ul>
+          <li>+225 07 48 73 86 71</li>
+          <li>Songon, Cité la Grâce</li>
+          <li>Abidjan, Côte d'Ivoire</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 HOME BY TIKA — Tous droits réservés</span>
+      <span><a href="admin.html" class="gestion-link" title="Espace de gestion" aria-label="Espace de gestion">•••</a></span>
+    </div>
+  </div>
+</footer>
+
+<script src="config.js"></script>
+<script src="media-manifest.js"></script>
+<script src="i18n.js"></script>
+<script src="script.js"></script>
+<script src="quote-request.js"></script>
+
+<script>
+/* =====================================================================
+   SHOWROOM — Carousel scroll-snap alimenté par Cloudinary
+   - Lit toutes les images de la catégorie 'showroom' via HBT_galleryListAsync
+   - Carousel horizontal avec scroll-snap, flèches, dots, swipe mobile
+   - Première image utilisée aussi dans .showroom-intro-visual
+   ===================================================================== */
+(function () {
+  const carousel = document.getElementById('showroom-carousel');
+  const prevBtn  = document.getElementById('sr-prev');
+  const nextBtn  = document.getElementById('sr-next');
+  const dotsBox  = document.getElementById('showroom-dots');
+  const heroVis  = document.getElementById('showroom-hero-visual');
+  const emptyEl  = document.getElementById('showroom-empty-state');
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  async function loadShowroom() {
+    const fetcher = window.HBT_galleryListAsync || window.HBT_mediaListAsync;
+    if (typeof fetcher !== 'function') {
+      console.warn('[Showroom] HBT helpers indisponibles');
+      return;
+    }
+    let items = [];
+    try {
+      items = await fetcher('showroom');
+    } catch (e) { console.warn('[Showroom] fetch :', e.message); }
+
+    if (!items || items.length === 0) {
+      // État vide : on garde le message empty
+      return;
+    }
+
+    // Cache le placeholder empty
+    if (emptyEl) emptyEl.style.display = 'none';
+
+    // Première image → visuel intro
+    if (heroVis && items[0] && items[0].url) {
+      const probe = new Image();
+      probe.onload = () => {
+        heroVis.style.backgroundImage = 'url("' + items[0].url + '")';
+        heroVis.classList.add('has-image');
+      };
+      probe.src = items[0].url;
+    }
+
+    // Injecte les slides
+    carousel.innerHTML = items.map((it, idx) => {
+      const url  = it.url || it.thumbUrl || '';
+      const name = escapeHtml(it.name || ('Showroom ' + (idx + 1)));
+      return '<div class="showroom-slide" data-idx="' + idx + '">' +
+               '<img src="' + url + '" alt="' + name + '" loading="' + (idx < 2 ? 'eager' : 'lazy') + '"' +
+                 (idx < 2 ? ' fetchpriority="high"' : '') +
+                 ' decoding="async"' +
+                 ' onerror="this.parentNode.style.background=\'linear-gradient(135deg,#f4ead2,#e8dcbf)\';this.style.display=\'none\';">' +
+             '</div>';
+    }).join('');
+
+    // Dots
+    dotsBox.innerHTML = items.map((_, idx) =>
+      '<button type="button" data-idx="' + idx + '" class="' + (idx === 0 ? 'active' : '') + '" aria-label="Image ' + (idx + 1) + '"></button>'
+    ).join('');
+
+    // Wire dots click
+    dotsBox.querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', () => scrollTo(parseInt(b.dataset.idx, 10)));
+    });
+
+    // Update dots on scroll
+    let scrollTimer;
+    carousel.addEventListener('scroll', () => {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(updateActiveDot, 80);
+    });
+  }
+
+  function getSlideWidth() {
+    const first = carousel.querySelector('.showroom-slide');
+    if (!first) return 320;
+    const gap = parseFloat(getComputedStyle(carousel).columnGap || '16') || 16;
+    return first.getBoundingClientRect().width + gap;
+  }
+
+  function scrollTo(idx) {
+    const w = getSlideWidth();
+    carousel.scrollTo({ left: w * idx, behavior: 'smooth' });
+  }
+  function scrollByDir(dir) {
+    const w = getSlideWidth();
+    carousel.scrollBy({ left: dir * w, behavior: 'smooth' });
+  }
+
+  function updateActiveDot() {
+    const w = getSlideWidth();
+    const idx = Math.round(carousel.scrollLeft / w);
+    dotsBox.querySelectorAll('button').forEach((b, i) => {
+      b.classList.toggle('active', i === idx);
+    });
+  }
+
+  prevBtn.addEventListener('click', () => scrollByDir(-1));
+  nextBtn.addEventListener('click', () => scrollByDir(1));
+
+  // Clavier ← →
+  document.addEventListener('keydown', (e) => {
+    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+    if (e.key === 'ArrowLeft')  scrollByDir(-1);
+    if (e.key === 'ArrowRight') scrollByDir(1);
+  });
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadShowroom);
+  } else {
+    loadShowroom();
+  }
+})();
+</script>
+</body>
+</html>

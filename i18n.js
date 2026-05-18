@@ -19,6 +19,7 @@ window.HBT_I18N = {
     'nav.contact':   'Contact',
     'nav.locate':    'Localisation',
     'nav.tracking':  'Suivi commande',
+    'nav.showroom':  'Showroom',
     'nav.cart':      'Panier',
 
     /* HERO */
@@ -240,7 +241,26 @@ window.HBT_I18N = {
     'devis.back':        '← Retour au site',
     'devis.download':    'Télécharger PDF',
     'devis.print':       'Imprimer',
-    'devis.contact':     'WhatsApp HOME BY TIKA'
+    'devis.contact':     'WhatsApp HOME BY TIKA',
+
+    /* SHOWROOM */
+    'showroom.title':         'Découvrez notre showroom',
+    'showroom.eyebrow':       'Notre espace physique',
+    'showroom.subtitle':      'Explorez nos pièces exposées et l\'ambiance HOME BY TIKA.',
+    'showroom.intro.title':   'Un lieu pensé pour révéler le bois',
+    'showroom.intro.lede':    'Notre showroom à Songon présente nos plus belles créations en taille réelle — portes massives, salons sculptés, tables de famille, serrurerie en laiton. Touchez les essences, ressentez les finitions, imaginez vos pièces chez vous.',
+    'showroom.tour.title':    'Visite du showroom',
+    'showroom.tour.lede':     'Glissez horizontalement pour parcourir l\'espace.',
+    'showroom.book':          'Prendre rendez-vous',
+    'showroom.book.lede':     'Notre équipe vous accueille du lundi au samedi. La visite se fait sur rendez-vous pour vous garantir une attention personnalisée.',
+    'showroom.cta.book':      'Réserver une visite',
+    'showroom.cta.wa':        'WhatsApp HOME BY TIKA',
+    'showroom.cta.call':      'Appeler HOME BY TIKA',
+    'showroom.empty':         'Les photos du showroom seront bientôt disponibles. Suivez-nous sur WhatsApp pour être informé.',
+    'showroom.address.label': 'Adresse',
+    'showroom.address':       'Songon, Cité la Grâce — Abidjan, Côte d\'Ivoire',
+    'showroom.hours.label':   'Horaires',
+    'showroom.hours':         'Lundi → Samedi, 9h → 18h · Sur rendez-vous'
   },
 
   /* ============ ENGLISH ============ */
@@ -252,6 +272,7 @@ window.HBT_I18N = {
     'nav.contact':   'Contact',
     'nav.locate':    'Location',
     'nav.tracking':  'Order tracking',
+    'nav.showroom':  'Showroom',
     'nav.cart':      'Cart',
 
     'hero.eyebrow':  'Ivorian cabinetmaking atelier',
@@ -455,7 +476,25 @@ window.HBT_I18N = {
     'devis.back':        '← Back to the site',
     'devis.download':    'Download PDF',
     'devis.print':       'Print',
-    'devis.contact':     'WhatsApp HOME BY TIKA'
+    'devis.contact':     'WhatsApp HOME BY TIKA',
+
+    'showroom.title':         'Discover our showroom',
+    'showroom.eyebrow':       'Our physical space',
+    'showroom.subtitle':      'Explore our displayed pieces and the HOME BY TIKA atmosphere.',
+    'showroom.intro.title':   'A space designed to reveal wood',
+    'showroom.intro.lede':    'Our showroom in Songon displays our finest creations life-size — solid doors, sculpted lounges, family tables, brass hardware. Touch the woods, feel the finishes, imagine your pieces at home.',
+    'showroom.tour.title':    'Showroom tour',
+    'showroom.tour.lede':     'Slide horizontally to explore the space.',
+    'showroom.book':          'Book a visit',
+    'showroom.book.lede':     'Our team welcomes you Monday to Saturday. Visits are by appointment to ensure dedicated attention.',
+    'showroom.cta.book':      'Book a visit',
+    'showroom.cta.wa':        'WhatsApp HOME BY TIKA',
+    'showroom.cta.call':      'Call HOME BY TIKA',
+    'showroom.empty':         'Showroom photos will be available shortly. Follow us on WhatsApp to be notified.',
+    'showroom.address.label': 'Address',
+    'showroom.address':       'Songon, Cité la Grâce — Abidjan, Côte d\'Ivoire',
+    'showroom.hours.label':   'Opening hours',
+    'showroom.hours':         'Monday → Saturday, 9am → 6pm · By appointment'
   },
 
   /* ============ ESPAÑOL ============ */
@@ -467,6 +506,7 @@ window.HBT_I18N = {
     'nav.contact':   'Contacto',
     'nav.locate':    'Ubicación',
     'nav.tracking':  'Seguimiento',
+    'nav.showroom':  'Showroom',
     'nav.cart':      'Cesta',
 
     'hero.eyebrow':  'Taller marfileño de ebanistería',
@@ -670,7 +710,25 @@ window.HBT_I18N = {
     'devis.back':        '← Volver al sitio',
     'devis.download':    'Descargar PDF',
     'devis.print':       'Imprimir',
-    'devis.contact':     'WhatsApp HOME BY TIKA'
+    'devis.contact':     'WhatsApp HOME BY TIKA',
+
+    'showroom.title':         'Descubra nuestro showroom',
+    'showroom.eyebrow':       'Nuestro espacio físico',
+    'showroom.subtitle':      'Explore nuestras piezas expuestas y el ambiente HOME BY TIKA.',
+    'showroom.intro.title':   'Un lugar pensado para revelar la madera',
+    'showroom.intro.lede':    'Nuestro showroom en Songon presenta nuestras mejores creaciones a tamaño real — puertas macizas, salones esculpidos, mesas de familia, herrajes de latón. Toque las maderas, sienta los acabados, imagine sus piezas en casa.',
+    'showroom.tour.title':    'Visita del showroom',
+    'showroom.tour.lede':     'Deslice horizontalmente para recorrer el espacio.',
+    'showroom.book':          'Reservar una visita',
+    'showroom.book.lede':     'Nuestro equipo le recibe de lunes a sábado. La visita se realiza con cita previa para garantizarle una atención personalizada.',
+    'showroom.cta.book':      'Reservar una visita',
+    'showroom.cta.wa':        'WhatsApp HOME BY TIKA',
+    'showroom.cta.call':      'Llamar a HOME BY TIKA',
+    'showroom.empty':         'Las fotos del showroom estarán disponibles próximamente. Síganos por WhatsApp para estar informado.',
+    'showroom.address.label': 'Dirección',
+    'showroom.address':       'Songon, Cité la Grâce — Abiyán, Costa de Marfil',
+    'showroom.hours.label':   'Horarios',
+    'showroom.hours':         'Lunes → Sábado, 9h → 18h · Con cita previa'
   }
 };
 
