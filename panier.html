@@ -35,7 +35,7 @@
 
   <section class="page-header">
     <div class="container">
-      <span class="hero-eyebrow">Récapitulatif</span>
+      <span class="hero-eyebrow" data-i18n="cart.eyebrow">Récapitulatif</span>
       <h1 data-i18n="cart.title">Votre panier</h1>
       <p>Vérifiez votre sélection avant de finaliser votre commande. Livraison &amp; installation offertes dès 1 500 000 FCFA d'achat sur Abidjan.</p>
     </div>
@@ -45,21 +45,21 @@
     <div class="container">
 
       <div class="cart-empty" id="cart-empty" style="display:none;">
-        <h2 style="margin-bottom: 1rem;">Votre panier est vide</h2>
-        <p>Aucune pièce sélectionnée pour le moment.</p>
-        <a href="boutique.html" class="btn btn-primary">Découvrir la collection</a>
+        <h2 style="margin-bottom: 1rem;" data-i18n="cart.empty">Votre panier est vide</h2>
+        <p data-i18n="cart.empty.desc">Aucune pièce sélectionnée pour le moment.</p>
+        <a href="boutique.html" class="btn btn-primary" data-i18n="cart.empty.cta">Découvrir la collection</a>
       </div>
 
       <div class="cart-wrap">
         <ul class="cart-list" id="cart-list"></ul>
 
         <aside class="cart-summary" id="cart-summary">
-          <h2>Récapitulatif</h2>
-          <div class="summary-row"><span>Sous-total</span><span id="sum-subtotal">—</span></div>
-          <div class="summary-row"><span>Livraison &amp; installation</span><span id="sum-shipping">—</span></div>
-          <div class="summary-row total"><span>Total</span><span id="sum-total">—</span></div>
-          <button id="checkout-btn" class="btn btn-primary" style="width: 100%; margin-top: 1.5rem;">Finaliser la commande</button>
-          <p style="font-size: 0.8rem; margin-top: 1rem; color: var(--muted); text-align: center;">Mobile Money &amp; virement acceptés · Paiement après confirmation</p>
+          <h2 data-i18n="cart.summary.title">Récapitulatif</h2>
+          <div class="summary-row"><span data-i18n="cart.subtotal">Sous-total</span><span id="sum-subtotal">—</span></div>
+          <div class="summary-row"><span data-i18n="cart.shipping">Livraison &amp; installation</span><span id="sum-shipping">—</span></div>
+          <div class="summary-row total"><span data-i18n="cart.total">Total</span><span id="sum-total">—</span></div>
+          <button id="checkout-btn" class="btn btn-primary" style="width: 100%; margin-top: 1.5rem;">data-i18n="cart.checkout">Finaliser la commande</button>
+          <p style="font-size: 0.8rem; margin-top: 1rem; color: var(--muted); text-align: center;" data-i18n="cart.payment.note">Mobile Money &amp; virement acceptés · Paiement après confirmation</p>
         </aside>
       </div>
 
