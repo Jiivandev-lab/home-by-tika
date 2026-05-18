@@ -141,15 +141,53 @@
     }
 
     .showroom-empty {
-      grid-column: 1 / -1;
+      flex: 0 0 100%;
       text-align: center;
-      padding: 3rem 1.5rem;
-      border: 1px dashed var(--line);
-      border-radius: 4px;
-      color: var(--muted);
-      background: var(--bg-soft);
-      font-size: 0.92rem;
+      padding: 3.5rem 1.5rem;
+      border: 1px dashed rgba(200, 153, 104, 0.35);
+      border-radius: 6px;
+      background: linear-gradient(180deg, rgba(200,153,104,0.05) 0%, transparent 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
     }
+    .showroom-empty-icon {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      border: 1.5px solid var(--gold);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--gold);
+      font-size: 2rem;
+      background: rgba(200, 153, 104, 0.06);
+    }
+    .showroom-empty-title {
+      font-family: var(--serif);
+      color: var(--gold);
+      font-size: 1.2rem;
+      margin: 0;
+    }
+    .showroom-empty-text {
+      color: var(--ivory-dim);
+      max-width: 460px;
+      line-height: 1.6;
+      font-size: 0.93rem;
+      margin: 0;
+    }
+    .showroom-empty-cta {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      background: #25d366; color: #fff;
+      padding: 0.7rem 1.3rem;
+      border-radius: 2px;
+      text-decoration: none;
+      font-size: 0.78rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-top: 0.4rem;
+      transition: background 0.2s ease;
+    }
+    .showroom-empty-cta:hover { background: #20bd5a; }
 
     /* ===== Section RDV ===== */
     .showroom-book {
@@ -270,12 +308,18 @@
       </div>
 
       <div class="showroom-tour">
-        <button type="button" class="showroom-arrow prev" id="sr-prev" aria-label="Précédent">‹</button>
-        <button type="button" class="showroom-arrow next" id="sr-next" aria-label="Suivant">›</button>
+        <button type="button" class="showroom-arrow prev" id="sr-prev" aria-label="Précédent" style="display:none;">‹</button>
+        <button type="button" class="showroom-arrow next" id="sr-next" aria-label="Suivant" style="display:none;">›</button>
         <div class="showroom-carousel" id="showroom-carousel">
-          <!-- Slides injectés dynamiquement -->
-          <div class="showroom-slide showroom-empty" id="showroom-empty-state" data-i18n="showroom.empty">
-            Les photos du showroom seront bientôt disponibles. Suivez-nous sur WhatsApp pour être informé.
+          <!-- Empty state premium (caché dès qu'images chargées) -->
+          <div class="showroom-empty" id="showroom-empty-state">
+            <div class="showroom-empty-icon">📷</div>
+            <h3 class="showroom-empty-title" data-i18n="showroom.empty.title">Le showroom prend vie bientôt</h3>
+            <p class="showroom-empty-text" data-i18n="showroom.empty.text">Nos photos arrivent sous peu. En attendant, nous vous invitons à découvrir l'espace de visu en prenant rendez-vous.</p>
+            <a href="https://wa.me/2250748738671?text=Bonjour%20HOME%20BY%20TIKA%2C%20je%20souhaite%20visiter%20le%20showroom." target="_blank" rel="noopener" class="showroom-empty-cta">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12c0 2.1.5 4.1 1.6 5.9L0 24l6.3-1.7c1.7 1 3.7 1.5 5.7 1.5 6.6 0 12-5.4 12-12S18.6 0 12 0z"/></svg>
+              <span data-i18n="showroom.empty.cta">Demander une visite</span>
+            </a>
           </div>
         </div>
         <div class="showroom-dots" id="showroom-dots"></div>
@@ -360,12 +404,14 @@
 
 <script>
 /* =====================================================================
-   SHOWROOM — Carousel scroll-snap alimenté par Cloudinary
-   - Lit toutes les images de la catégorie 'showroom' via HBT_galleryListAsync
-   - Carousel horizontal avec scroll-snap, flèches, dots, swipe mobile
-   - Première image utilisée aussi dans .showroom-intro-visual
+   SHOWROOM v2 — Carousel premium + diagnostic console + autoplay
+   - Triple fallback : HBT_galleryListAsync → Supabase direct → empty state
+   - Autoplay 5s avec pause au hover/touch
+   - Boutons + dots + swipe + clavier ← →
+   - Logs explicites en console (F12) pour diagnostic
    ===================================================================== */
 (function () {
+  'use strict';
   const carousel = document.getElementById('showroom-carousel');
   const prevBtn  = document.getElementById('sr-prev');
   const nextBtn  = document.getElementById('sr-next');
@@ -373,30 +419,93 @@
   const heroVis  = document.getElementById('showroom-hero-visual');
   const emptyEl  = document.getElementById('showroom-empty-state');
 
+  let autoplayTimer = null;
+  let userInteracted = false;
+
   function escapeHtml(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;')
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  async function loadShowroom() {
-    const fetcher = window.HBT_galleryListAsync || window.HBT_mediaListAsync;
-    if (typeof fetcher !== 'function') {
-      console.warn('[Showroom] HBT helpers indisponibles');
-      return;
-    }
+  /* ===== Sources avec log explicite ===== */
+  async function fetchShowroomImages() {
+    console.group('[Showroom] Recherche d\'images');
     let items = [];
-    try {
-      items = await fetcher('showroom');
-    } catch (e) { console.warn('[Showroom] fetch :', e.message); }
+
+    // SOURCE 1 : HBT_galleryListAsync (manifeste + Supabase + Cloudinary tag)
+    if (typeof window.HBT_galleryListAsync === 'function') {
+      try {
+        const result = await window.HBT_galleryListAsync('showroom');
+        console.log('  Source 1 — HBT_galleryListAsync(\"showroom\") :', (result || []).length, 'image(s)');
+        if (result && result.length > 0) {
+          console.log('  ✓ Source 1 a renvoyé des images, on les utilise.');
+          console.groupEnd();
+          return result;
+        }
+      } catch (e) {
+        console.warn('  Source 1 erreur :', e.message);
+      }
+    } else {
+      console.warn('  Source 1 indisponible (HBT_galleryListAsync non chargé)');
+    }
+
+    // SOURCE 2 : Requête Supabase directe sur products WHERE category='showroom'
+    if (window.HBT_CONFIG && window.HBT_CONFIG.isSupabaseReady && window.HBT_CONFIG.isSupabaseReady()) {
+      try {
+        const url = window.HBT_CONFIG.supabase.url +
+                    '/rest/v1/products?select=*&category=eq.showroom&published=eq.true&order=created_at.desc';
+        const res = await fetch(url, {
+          headers: {
+            apikey: window.HBT_CONFIG.supabase.anonKey,
+            Authorization: 'Bearer ' + window.HBT_CONFIG.supabase.anonKey
+          },
+          cache: 'no-store'
+        });
+        if (res.ok) {
+          const rows = await res.json();
+          console.log('  Source 2 — Supabase direct (WHERE category=showroom) :', rows.length, 'image(s)');
+          if (rows.length > 0) {
+            items = rows.map(p => ({
+              id: p.id,
+              name: p.name,
+              url:  p.cloudinary_url || (window.HBT_mediaUrl ? window.HBT_mediaUrl('showroom', p.id, { width: 1400, crop: 'fill' }) : ''),
+              thumbUrl: p.cloudinary_url || (window.HBT_mediaUrl ? window.HBT_mediaUrl('showroom', p.id, { width: 800, crop: 'fill' }) : '')
+            }));
+            console.log('  ✓ Source 2 — images mappées:', items);
+            console.groupEnd();
+            return items;
+          }
+        } else {
+          console.warn('  Source 2 HTTP ' + res.status + ' :', await res.text());
+        }
+      } catch (e) {
+        console.warn('  Source 2 erreur :', e.message);
+      }
+    } else {
+      console.warn('  Source 2 indisponible (Supabase non configuré)');
+    }
+
+    console.warn('  Aucune source n\'a trouvé d\'image. Empty state affiché.');
+    console.log('  → Pour ajouter des photos : Admin → + Nouveau produit → catégorie "Galerie : Showroom" → Upload.');
+    console.groupEnd();
+    return [];
+  }
+
+  /* ===== Rendu ===== */
+  async function loadShowroom() {
+    const items = await fetchShowroomImages();
 
     if (!items || items.length === 0) {
-      // État vide : on garde le message empty
+      // Empty state reste affiché (déjà dans le HTML)
+      if (window.applyTranslations) window.applyTranslations(emptyEl);
       return;
     }
 
-    // Cache le placeholder empty
+    // Cache l'empty state, montre les flèches
     if (emptyEl) emptyEl.style.display = 'none';
+    prevBtn.style.display = 'flex';
+    nextBtn.style.display = 'flex';
 
     // Première image → visuel intro
     if (heroVis && items[0] && items[0].url) {
@@ -425,9 +534,8 @@
       '<button type="button" data-idx="' + idx + '" class="' + (idx === 0 ? 'active' : '') + '" aria-label="Image ' + (idx + 1) + '"></button>'
     ).join('');
 
-    // Wire dots click
     dotsBox.querySelectorAll('button').forEach(b => {
-      b.addEventListener('click', () => scrollTo(parseInt(b.dataset.idx, 10)));
+      b.addEventListener('click', () => { userInteracted = true; scrollToIdx(parseInt(b.dataset.idx, 10)); });
     });
 
     // Update dots on scroll
@@ -436,6 +544,10 @@
       clearTimeout(scrollTimer);
       scrollTimer = setTimeout(updateActiveDot, 80);
     });
+
+    // Démarre l'autoplay si plus de 1 image
+    if (items.length > 1) startAutoplay(items.length);
+    console.log('[Showroom] ✓ Carousel prêt avec', items.length, 'image(s). Autoplay activé.');
   }
 
   function getSlideWidth() {
@@ -444,16 +556,15 @@
     const gap = parseFloat(getComputedStyle(carousel).columnGap || '16') || 16;
     return first.getBoundingClientRect().width + gap;
   }
-
-  function scrollTo(idx) {
+  function scrollToIdx(idx) {
     const w = getSlideWidth();
     carousel.scrollTo({ left: w * idx, behavior: 'smooth' });
   }
   function scrollByDir(dir) {
+    userInteracted = true;
     const w = getSlideWidth();
     carousel.scrollBy({ left: dir * w, behavior: 'smooth' });
   }
-
   function updateActiveDot() {
     const w = getSlideWidth();
     const idx = Math.round(carousel.scrollLeft / w);
@@ -461,6 +572,22 @@
       b.classList.toggle('active', i === idx);
     });
   }
+
+  /* ===== Autoplay 5s avec pause hover/touch ===== */
+  function startAutoplay(total) {
+    if (autoplayTimer) clearInterval(autoplayTimer);
+    autoplayTimer = setInterval(() => {
+      if (userInteracted) return;  // pause permanente après interaction
+      const w = getSlideWidth();
+      const currentIdx = Math.round(carousel.scrollLeft / w);
+      const nextIdx = (currentIdx + 1) % total;
+      carousel.scrollTo({ left: w * nextIdx, behavior: 'smooth' });
+    }, 5000);
+  }
+
+  ['mouseenter', 'touchstart'].forEach(evt => {
+    carousel.addEventListener(evt, () => { userInteracted = true; }, { passive: true });
+  });
 
   prevBtn.addEventListener('click', () => scrollByDir(-1));
   nextBtn.addEventListener('click', () => scrollByDir(1));
