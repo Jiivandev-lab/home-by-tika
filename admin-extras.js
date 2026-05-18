@@ -1292,6 +1292,7 @@
         <button type="button" class="hbt-extras-tab" data-tab="docs">Devis &amp; Factures</button>
         <button type="button" class="hbt-extras-tab" data-tab="requests">Demandes de devis</button>
         <button type="button" class="hbt-extras-tab" data-tab="accounting">Comptabilité</button>
+        <button type="button" class="hbt-extras-tab" data-tab="showroom">Showroom</button>
       </div>
       <div id="hbt-extras-content"></div>
     `;
@@ -1339,6 +1340,255 @@
     } else if (tab === 'accounting') {
       content.classList.remove('hbt-invoice-section');
       renderAccountingTab(content);
+    } else if (tab === 'showroom') {
+      content.classList.remove('hbt-invoice-section');
+      renderShowroomTab(content);
+    }
+  }
+
+  /* ============================================================
+     ONGLET SHOWROOM — gestion dédiée des photos showroom
+     ============================================================ */
+  let showroomPhotos = [];
+
+  function renderShowroomTab(container) {
+    container.innerHTML = `
+      <div class="hbt-extras-section">
+        <h2 style="font-family:var(--serif,'Playfair Display'),serif;color:var(--gold,#c89968);font-size:1.4rem;margin:0 0 0.4rem;">Showroom</h2>
+        <p style="color:var(--muted,#8a7e6a);font-size:0.9rem;margin-bottom:1.4rem;">Gérez les photos du showroom HOME BY TIKA. Les images uploadées apparaissent immédiatement sur la page <a href="showroom.html" target="_blank" style="color:var(--gold);">showroom.html</a>.</p>
+
+        <!-- BLOC UPLOAD -->
+        <div style="background:rgba(200,153,104,0.06);border-left:3px solid var(--gold,#c89968);padding:1.2rem;border-radius:2px;margin-bottom:1.6rem;">
+          <strong style="color:var(--gold);font-size:0.78rem;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;display:block;margin-bottom:0.7rem;">+ Ajouter une photo showroom</strong>
+
+          <div class="hbt-form" style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem 1rem;">
+            <div class="full" style="grid-column:1/-1;">
+              <label>Titre de la photo *</label>
+              <input type="text" id="sr-title" required placeholder="Ex: Salon principal du showroom">
+            </div>
+            <div class="full" style="grid-column:1/-1;">
+              <label>Description (optionnel)</label>
+              <input type="text" id="sr-description" placeholder="Ex: Vue d'ensemble côté entrée">
+            </div>
+            <div class="full" style="grid-column:1/-1;">
+              <label>Image *</label>
+              <div class="hbt-upload-zone" id="sr-upload-zone">
+                <div class="upload-zone-content">
+                  <div class="upload-hint" id="sr-upload-hint">Cliquez ou glissez une image ici (JPG, PNG, WEBP — max 10 Mo)</div>
+                </div>
+                <input type="file" id="sr-file" accept="image/*" style="display:none;">
+              </div>
+            </div>
+          </div>
+
+          <div style="text-align:right;margin-top:1rem;">
+            <button type="button" id="sr-publish" class="hbt-btn-primary" disabled style="padding:0.7rem 1.4rem;font-size:0.75rem;opacity:0.5;cursor:not-allowed;">Publier la photo</button>
+          </div>
+        </div>
+
+        <!-- LISTE photos existantes -->
+        <h3 style="font-family:var(--serif,'Playfair Display'),serif;color:var(--gold,#c89968);font-size:1.05rem;margin:1.4rem 0 0.4rem;">Photos en ligne</h3>
+        <p id="sr-status" style="color:var(--muted);font-size:0.85rem;margin-bottom:0.8rem;">Chargement…</p>
+        <div id="sr-list" class="hbt-products-list"></div>
+
+        <!-- Lien vers page publique -->
+        <div style="text-align:center;margin-top:1.6rem;padding-top:1.2rem;border-top:1px solid var(--line);">
+          <a href="showroom.html" target="_blank" style="color:var(--gold);font-size:0.88rem;">Voir la page publique du showroom →</a>
+        </div>
+      </div>
+    `;
+    wireShowroomTab();
+    loadShowroomPhotos();
+  }
+
+  let srPendingFile = null;
+  let srPendingPreview = null;
+
+  function wireShowroomTab() {
+    const titleI = document.querySelector('#sr-title');
+    const descI  = document.querySelector('#sr-description');
+    const zone   = document.querySelector('#sr-upload-zone');
+    const fileI  = document.querySelector('#sr-file');
+    const pubBtn = document.querySelector('#sr-publish');
+
+    // Drag & drop + click
+    zone.addEventListener('click', () => fileI.click());
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor = 'var(--gold)'; });
+    zone.addEventListener('dragleave', () => { zone.style.borderColor = ''; });
+    zone.addEventListener('drop', e => {
+      e.preventDefault(); zone.style.borderColor = '';
+      if (e.dataTransfer.files[0]) handleShowroomFile(e.dataTransfer.files[0]);
+    });
+    fileI.addEventListener('change', e => {
+      if (e.target.files[0]) handleShowroomFile(e.target.files[0]);
+    });
+
+    // Activer le bouton si titre + fichier
+    function checkReady() {
+      const ok = titleI.value.trim() && srPendingFile;
+      pubBtn.disabled = !ok;
+      pubBtn.style.opacity = ok ? '1' : '0.5';
+      pubBtn.style.cursor = ok ? 'pointer' : 'not-allowed';
+    }
+    titleI.addEventListener('input', checkReady);
+
+    function handleShowroomFile(file) {
+      if (!file.type.startsWith('image/')) {
+        toast('⚠ Fichier non image', '#c45b5b'); return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        toast('⚠ Image trop volumineuse (max 10 Mo)', '#c45b5b'); return;
+      }
+      srPendingFile = file;
+      const reader = new FileReader();
+      reader.onload = e => {
+        srPendingPreview = e.target.result;
+        zone.classList.add('has-image');
+        zone.querySelector('.upload-zone-content').innerHTML =
+          '<img src="' + srPendingPreview + '" alt="aperçu" style="max-width:100%;max-height:200px;display:block;margin:0 auto;border-radius:2px;">' +
+          '<div class="upload-hint" style="padding:0.6rem;">Cliquez pour changer · ' + Math.round(file.size/1024) + ' Ko</div>';
+        checkReady();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    pubBtn.addEventListener('click', async () => {
+      if (!srPendingFile || !titleI.value.trim()) return;
+      const title = titleI.value.trim();
+      const desc  = descI.value.trim();
+
+      pubBtn.disabled = true;
+      pubBtn.textContent = 'Upload en cours…';
+
+      try {
+        // 1) Upload Cloudinary
+        const cloudName = window.HBT_CONFIG.cloudinary.cloudName;
+        const preset    = window.HBT_CONFIG.cloudinary.uploadPreset;
+        if (!cloudName || cloudName === 'YOUR_CLOUD_NAME_HERE') {
+          throw new Error('Cloudinary non configuré');
+        }
+        const meta = window.HBT_generateProductMeta(title, 'showroom');
+        const fd = new FormData();
+        fd.append('file', srPendingFile);
+        fd.append('upload_preset', preset);
+        fd.append('folder', meta.folder);
+        fd.append('public_id', meta.slug);
+        fd.append('tags', meta.tags.join(','));
+
+        const upUrl = 'https://api.cloudinary.com/v1_1/' + cloudName + '/image/upload';
+        const upRes = await fetch(upUrl, { method: 'POST', body: fd });
+        const upData = await upRes.json();
+        if (!upRes.ok || !upData.secure_url) {
+          throw new Error('Cloudinary: ' + (upData.error ? upData.error.message : upRes.status));
+        }
+
+        // 2) Save Supabase
+        await window.ProductService.create({
+          name: title,
+          category: 'showroom',
+          description: desc,
+          cloudinary_id: upData.public_id,
+          cloudinary_url: upData.secure_url,
+          tags: meta.tags,
+          media_type: 'image'
+        });
+
+        toast('✓ Photo showroom publiée', '#2e8a56');
+
+        // Reset form
+        srPendingFile = null; srPendingPreview = null;
+        titleI.value = ''; descI.value = '';
+        zone.classList.remove('has-image');
+        zone.querySelector('.upload-zone-content').innerHTML =
+          '<div class="upload-hint" id="sr-upload-hint">Cliquez ou glissez une image ici (JPG, PNG, WEBP — max 10 Mo)</div>';
+        checkReady();
+        loadShowroomPhotos();  // recharge la liste
+      } catch (err) {
+        console.error('[Showroom upload]', err);
+        toast('❌ ' + err.message, '#c45b5b');
+      } finally {
+        pubBtn.disabled = false;
+        pubBtn.textContent = 'Publier la photo';
+      }
+    });
+  }
+
+  async function loadShowroomPhotos() {
+    const listEl   = document.querySelector('#sr-list');
+    const statusEl = document.querySelector('#sr-status');
+    if (!listEl) return;
+
+    try {
+      const photos = await window.ProductService.list('showroom');
+      showroomPhotos = photos || [];
+
+      if (showroomPhotos.length === 0) {
+        statusEl.innerHTML = '<em style="color:var(--muted);">Aucune photo showroom pour le moment. Utilisez le formulaire ci-dessus.</em>';
+        listEl.innerHTML = '';
+        return;
+      }
+
+      statusEl.innerHTML = '✓ ' + showroomPhotos.length + ' photo(s) en ligne sur <a href="showroom.html" target="_blank" style="color:var(--gold);">showroom.html</a>';
+
+      listEl.innerHTML = showroomPhotos.map(p => {
+        const url = p.cloudinary_url || (window.HBT_mediaUrl ? window.HBT_mediaUrl('showroom', p.id, { width: 400, crop: 'fill' }) : '');
+        return `
+          <div class="hbt-product-mini" data-id="${escapeHtml(p.id)}">
+            <img src="${url}" alt="${escapeHtml(p.name)}" loading="lazy"
+                 onerror="HBT_handleImageError(this, '${escapeHtml(p.name).replace(/'/g, "\\'")}')">
+            <div class="body">
+              <h4 class="name">${escapeHtml(p.name)}</h4>
+              <div class="meta">${p.description ? escapeHtml(p.description) : '<em style="color:var(--muted);">Pas de description</em>'}</div>
+              <div class="actions">
+                <button type="button" data-sr-action="edit">Renommer</button>
+                <button type="button" data-sr-action="delete" class="danger">Supprimer</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Wire actions
+      listEl.querySelectorAll('[data-sr-action="delete"]').forEach(b => {
+        b.addEventListener('click', async () => {
+          const card = b.closest('.hbt-product-mini');
+          const id = card.dataset.id;
+          if (!confirm('Supprimer cette photo showroom ? L\'image disparaîtra immédiatement de showroom.html.')) return;
+          try {
+            await window.ProductService.delete(id);
+            toast('✓ Photo supprimée', '#2e8a56');
+            loadShowroomPhotos();
+          } catch (err) {
+            toast('❌ ' + err.message, '#c45b5b');
+          }
+        });
+      });
+      listEl.querySelectorAll('[data-sr-action="edit"]').forEach(b => {
+        b.addEventListener('click', async () => {
+          const card = b.closest('.hbt-product-mini');
+          const id = card.dataset.id;
+          const photo = showroomPhotos.find(p => p.id === id);
+          if (!photo) return;
+          const newTitle = prompt('Nouveau titre :', photo.name);
+          if (newTitle === null || newTitle.trim() === '') return;
+          const newDesc = prompt('Nouvelle description (optionnel) :', photo.description || '');
+          if (newDesc === null) return;
+          try {
+            await window.ProductService.update(id, {
+              name: newTitle.trim(),
+              description: newDesc.trim()
+            });
+            toast('✓ Photo mise à jour', '#2e8a56');
+            loadShowroomPhotos();
+          } catch (err) {
+            toast('❌ ' + err.message, '#c45b5b');
+          }
+        });
+      });
+    } catch (err) {
+      console.error('[Showroom list]', err);
+      statusEl.innerHTML = '❌ Erreur de chargement : ' + escapeHtml(err.message);
+      statusEl.style.color = '#c45b5b';
     }
   }
 
