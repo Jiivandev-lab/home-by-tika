@@ -3,31 +3,39 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1a1410">
   <title>Boutique — HOME BY TIKA · Côte d'Ivoire</title>
   <meta name="description" content="Découvrez la collection complète de mobilier et portes en bois massif de l'atelier HOME BY TIKA — Iroko, Framiré, Teck.">
+
+  <!-- CRITICAL CSS minimal AVANT styles.css : garantit que la page est visible
+       même si styles.css ou le JS ne se chargent pas (cache, réseau lent). -->
+  <style>
+    html, body { margin: 0; padding: 0; background: #f5ede0; color: #1a1410; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; min-height: 100vh; overflow-x: hidden; }
+    body { visibility: visible !important; opacity: 1 !important; }
+    main, header, footer, section, .container { display: block; }
+    #shop-grid { min-height: 200px; }
+    /* Loader pré-CSS */
+    .pre-loader { padding: 4rem 1rem; text-align: center; color: #7a5a32; font-size: 0.9rem; }
+  </style>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
   <link rel="dns-prefetch" href="https://res.cloudinary.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
-  <!-- CRITICAL CSS inline : applique IMMÉDIATEMENT le fond ivoire et compacte
-       la page-header pour que les produits soient visibles dès l'ouverture
-       (avant même que styles.css ne soit téléchargé). Mobile en priorité. -->
+
+  <!-- Compact mobile (APRÈS styles.css pour pouvoir override) -->
   <style>
-    html, body { background: #f5ede0; margin: 0; }
-    body { color: #1a1410; }
-    /* Mobile : page-header ultra-compact */
     @media (max-width: 720px) {
-      .page-header.shop-header { padding: 1rem 0 0.4rem !important; }
-      .page-header.shop-header h1 { font-size: clamp(1.4rem, 6vw, 1.9rem) !important; margin: 0.3rem 0 0.3rem !important; line-height: 1.1; }
+      .page-header.shop-header { padding: 1rem 0 0.4rem; }
+      .page-header.shop-header h1 { font-size: clamp(1.4rem, 6vw, 1.9rem); margin: 0.3rem 0; line-height: 1.1; }
       .page-header.shop-header .hero-eyebrow { font-size: 0.65rem; letter-spacing: 2px; }
       .page-header.shop-header p { font-size: 0.85rem; line-height: 1.4; margin: 0; opacity: 0.85; max-width: 100%; }
-      .shop-section { padding: 0.6rem 0 2rem !important; }
-      .filters { margin-bottom: 0.8rem !important; gap: 0.4rem !important; }
-      .filter-btn { font-size: 0.7rem !important; padding: 0.45rem 0.8rem !important; }
+      .shop-section { padding: 0.6rem 0 2rem; }
+      .filters { margin-bottom: 0.8rem; gap: 0.4rem; }
+      .filter-btn { font-size: 0.7rem; padding: 0.45rem 0.8rem; }
     }
-    /* Très petit écran : on cache le paragraphe pour gagner encore plus de place */
     @media (max-width: 480px) {
       .page-header.shop-header p { display: none; }
     }
@@ -73,7 +81,21 @@
         <button class="filter-btn active" data-filter="all">Tout</button>
       </div>
 
-      <div class="product-grid" id="shop-grid"></div>
+      <div class="product-grid" id="shop-grid">
+        <!-- FALLBACK PRÉ-RENDU : si JS échoue ou met du temps, ces lignes restent visibles -->
+        <noscript>
+          <div style="grid-column:1/-1; padding:2rem; text-align:center; border:1px dashed rgba(200,153,104,0.3); border-radius:4px; background:rgba(200,153,104,0.04);">
+            <h3 style="color:#7a5a32; font-family:'Playfair Display', serif; margin:0 0 0.5rem;">JavaScript requis</h3>
+            <p style="color:#5a4a36;">Veuillez activer JavaScript pour voir la collection. Ou contactez-nous directement :</p>
+            <a href="https://wa.me/2250748738671" style="display:inline-block; margin-top:1rem; padding:0.7rem 1.4rem; background:#25d366; color:#fff; text-decoration:none; border-radius:2px;">WhatsApp HOME BY TIKA</a>
+          </div>
+        </noscript>
+        <div id="shop-pre-loader" class="pre-loader">
+          <div style="display:inline-block; width:28px; height:28px; border:2.5px solid rgba(200,153,104,0.3); border-top-color:#c89968; border-radius:50%; animation:spin 0.8s linear infinite; margin-bottom:0.8rem;"></div>
+          <div style="color:#7a5a32; font-family:'Playfair Display', Georgia, serif; font-size:1rem;">Chargement de la collection…</div>
+        </div>
+        <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+      </div>
 
       <div style="text-align:center; margin-top: 5rem; padding: 3rem; border: 1px solid var(--line); background: var(--bg-soft);">
         <span class="hero-eyebrow">Sur-mesure</span>
@@ -143,6 +165,20 @@
      du contenu : il suffit d'uploader dans Cloudinary avec le bon tag.
      ==================================================================== -->
 <script>
+/* === ERROR BOUNDARY global : si une erreur JS empêche le rendu,
+   on affiche au moins un message au lieu d'un écran blanc === */
+window.addEventListener('error', function (e) {
+  console.error('[Boutique] Erreur JS globale:', e.message, e.filename, e.lineno);
+  const grid = document.getElementById('shop-grid');
+  if (grid && grid.querySelector('#shop-pre-loader')) {
+    grid.innerHTML = '<div style="grid-column:1/-1; padding:2.5rem 1.5rem; text-align:center; background:rgba(200,153,104,0.04); border:1px dashed rgba(200,153,104,0.3); border-radius:4px;">' +
+      '<h3 style="color:#7a5a32; font-family:Georgia,serif; margin:0 0 0.6rem;">Boutique temporairement indisponible</h3>' +
+      '<p style="color:#5a4a36; margin-bottom:1rem;">Veuillez rafraîchir la page ou nous contacter directement.</p>' +
+      '<a href="https://wa.me/2250748738671" style="display:inline-block; padding:0.7rem 1.4rem; background:#25d366; color:#fff; text-decoration:none; border-radius:2px;">WhatsApp HOME BY TIKA</a>' +
+      '</div>';
+  }
+});
+
 (function () {
   /* ============================================================
      BOUTIQUE — Catégories 100% dynamiques depuis HBT_CATEGORIES
@@ -309,13 +345,36 @@
     showFilter(btn.dataset.filter);
   });
 
-  // Lancement initial
-  function init() { showFilter('all'); }
+  // Lancement initial — IMMÉDIAT (pas de setTimeout) + try/catch bulletproof
+  function init() {
+    try {
+      showFilter('all');
+    } catch (err) {
+      console.error('[Boutique] Erreur init:', err);
+      // Affiche au moins un message au lieu d'écran blanc
+      if (grid) {
+        grid.innerHTML = `
+          <div style="grid-column:1/-1; padding:2.5rem 1.5rem; text-align:center; border:1px dashed rgba(200,153,104,0.3); border-radius:4px; background:rgba(200,153,104,0.04);">
+            <h3 style="color:#7a5a32; font-family:'Playfair Display',serif; margin:0 0 0.6rem;">Boutique en cours de chargement</h3>
+            <p style="color:#5a4a36; margin-bottom:1rem;">Si vous voyez ce message plus de 5 secondes, rechargez la page (tirez vers le bas) ou contactez-nous.</p>
+            <a href="https://wa.me/2250748738671" style="display:inline-block; padding:0.7rem 1.4rem; background:#25d366; color:#fff; text-decoration:none; border-radius:2px; font-weight:600; font-size:0.85rem; letter-spacing:1.5px; text-transform:uppercase;">Nous contacter</a>
+          </div>`;
+      }
+    }
+  }
+  // Lance immédiatement si DOM prêt, sinon attend
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
-    setTimeout(init, 0);
+    init();  // appel direct, pas setTimeout
   }
+  // Filet de sécurité : si après 3s rien n'est rendu, on retente
+  setTimeout(() => {
+    if (grid && grid.querySelector('#shop-pre-loader')) {
+      console.warn('[Boutique] Loader toujours visible après 3s, retry...');
+      init();
+    }
+  }, 3000);
 })();
 </script>
 </body>
